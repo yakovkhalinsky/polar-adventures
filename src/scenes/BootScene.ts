@@ -36,6 +36,17 @@ export class BootScene extends Phaser.Scene {
       MOVE.JUMP_BUFFER_MS,
     );
 
+    // Ice reads as a feel change only if the slide is dramatically longer than
+    // rock's, so print the pair rather than the ice number alone.
+    console.info(
+      '[polar] release at top speed coasts %s px on rock, %s px on ice | ' +
+        'ice run-up %ss (rock %ss)',
+      DERIVED.rockSlidePx.toFixed(1),
+      DERIVED.iceSlidePx.toFixed(1),
+      DERIVED.iceRunUpSeconds.toFixed(2),
+      DERIVED.runUpSeconds.toFixed(2),
+    );
+
     this.scene.start('Level');
   }
 }

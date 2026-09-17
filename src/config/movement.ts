@@ -58,6 +58,52 @@ export const MOVE = {
   JUMP_BUFFER_MS: 120, // ~7 frames of grace for pressing jump before landing
 } as const;
 
+/**
+ * What the hero is standing on. Only the horizontal constants differ between
+ * these — ice never touches gravity, jump height or top speed.
+ */
+export type Surface = 'rock' | 'ice';
+
+/**
+ * Ice is a FEEL surface: it changes how quickly horizontal speed can change,
+ * and nothing else.
+ *
+ * It deliberately does NOT raise MAX_RUN_SPEED. Arcade clamps velocity against
+ * maxVelocity LAST (World.computeVelocity), and that clamp is absolute, so
+ * sliding faster than run speed would mean raising the cap — which would make
+ * ice a speed boost rather than a hazard.
+ *
+ * ACCEL and TURN are not optional extras. Arcade applies drag ONLY on a step
+ * where acceleration is exactly zero (`else if (allowDrag && dragX)`,
+ * World.computeVelocity), so while a direction is held, drag contributes
+ * nothing at all and these two are the only levers that exist. DRAG governs
+ * the coast after you let go.
+ */
+export const ICE = {
+  ACCEL: 420, // px/s^2 -> 0.38s to top speed, vs 0.12s on rock
+  TURN: 700, // px/s^2 -> reversing at speed carries you a long way
+  DRAG: 120, // px/s^2 -> coasts ~107px from top speed, vs ~8.5px on rock
+} as const;
+
+/**
+ * The horizontal tuning for a surface. Returning a whole preset rather than
+ * having the caller pick fields keeps the branching in one place, and means
+ * adding a third surface later is a change to this file alone.
+ */
+export function groundTuning(surface: Surface): {
+  accel: number;
+  turn: number;
+  drag: number;
+} {
+  return surface === 'ice'
+    ? { accel: ICE.ACCEL, turn: ICE.TURN, drag: ICE.DRAG }
+    : {
+        accel: MOVE.GROUND_ACCEL,
+        turn: MOVE.TURN_ACCEL,
+        drag: MOVE.GROUND_DRAG,
+      };
+}
+
 export const GRAVITY_FALL = MOVE.GRAVITY_RISE * MOVE.GRAVITY_FALL_RATIO;
 
 /**
@@ -84,4 +130,9 @@ export const DERIVED = {
   riseSeconds: MOVE.JUMP_VELOCITY / MOVE.GRAVITY_RISE,
   fallSeconds: MOVE.JUMP_VELOCITY / GRAVITY_FALL,
   runUpSeconds: MOVE.MAX_RUN_SPEED / MOVE.GROUND_ACCEL,
+
+  // How far a release at top speed coasts on each surface, `v^2 / 2a`.
+  rockSlidePx: (MOVE.MAX_RUN_SPEED * MOVE.MAX_RUN_SPEED) / (2 * MOVE.GROUND_DRAG),
+  iceSlidePx: (MOVE.MAX_RUN_SPEED * MOVE.MAX_RUN_SPEED) / (2 * ICE.DRAG),
+  iceRunUpSeconds: MOVE.MAX_RUN_SPEED / ICE.ACCEL,
 } as const;

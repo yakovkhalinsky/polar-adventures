@@ -108,6 +108,21 @@ try {
       }
     }
 
+    // Ice must both exist in the map AND collide. setCollision is a whitelist
+    // by index, so a tile omitted from it has all four flags false and the hero
+    // falls through — which makes the surface undetectable, not merely
+    // non-solid. Asserting the flags is what catches that.
+    let iceTiles = 0;
+    let iceCollides = null;
+    for (const row of scene.level.solidLayer.layer.data) {
+      for (const tile of row) {
+        if (tile && tile.index === 3) {
+          iceTiles++;
+          if (iceCollides === null) iceCollides = tile.canCollide;
+        }
+      }
+    }
+
     return {
       renderer: game.renderer.type === 2 ? 'WebGL' : 'Canvas',
       canvasBacking: [canvas.width, canvas.height],
@@ -126,6 +141,8 @@ try {
         : null,
       oneWayBodies,
       oneWayStretched,
+      iceTiles,
+      iceCollides,
       tilesFrames: game.textures.get('ph-tiles').getFrameNames().length,
       heroFrames: game.textures.get('ph-hero').getFrameNames().length,
     };
@@ -141,6 +158,8 @@ try {
     ['max velocity caps jump, not fall (y=560)', report.player?.maxVel[1] === 560],
     ['one-way platform bodies built', report.oneWayBodies >= 2],
     ['one-way runs collapsed into stretched bodies', report.oneWayStretched >= 1],
+    ['level contains ice tiles', report.iceTiles > 0],
+    ['ice tiles collide (index 3 is in the collision set)', report.iceCollides === true],
     // A createCanvas texture has one base frame unless frames are added. The
     // one-way platform sprites index this texture by tile, and without frames
     // Phaser silently falls back to the whole 128x32 strip.

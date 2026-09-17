@@ -30,6 +30,7 @@ export const LEVEL_01: LevelSource = {
   legend: {
     '.': -1, // -1 is how Phaser's Parse2DArray marks an empty cell
     '#': TILE_INDEX.SOLID,
+    '~': TILE_INDEX.ICE,
     // One-way cells render and collide via the static platform group, NOT the
     // tilemap layer, so they are empty here. Drawing them in both places would
     // double-render them at two different sizes.
@@ -50,7 +51,11 @@ export const LEVEL_01: LevelSource = {
     '....................=====.......................', // 10  one-way, 3 tiles up
     '.....##.......................#########.....====', // 11  plateau + one-way
     '..P.........................###########.........', // 12  spawn + step-up
-    '##########..###########################...######', // 13  pits
+    // Ice at the SURFACE only (row 13), cols 13-24 = world x 416..800, sitting
+    // on rock below so it reads as an ice sheet rather than stacked snow caps.
+    // Placed after the pit (cols 10-11) so the rock-friction check still runs on
+    // rock, and clear of the plateau wall (col 30) so a slide is never cut short.
+    '##########..#~~~~~~~~~~~~##############...######', // 13  pits + ice
     '##########..###########################...######', // 14
     '##########..###########################...######', // 15
   ],

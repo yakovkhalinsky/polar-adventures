@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
-import { GRAVITY_FALL, MOVE } from '../config/movement';
+import {
+  GRAVITY_FALL,
+  MOVE,
+  groundTuning,
+  type Surface,
+} from '../config/movement';
 
 export type InputState = {
   left: boolean;
@@ -57,6 +62,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.spawnY = y;
   }
 
+  /**
+   * Where to sample "what am I standing on": the bottom-centre of the body,
+   * nudged 1px DOWN.
+   *
+   * The nudge is load-bearing. worldToTileY floors, so a body resting exactly
+   * flush with a tile top can floor to the tile boundary and read the EMPTY
+   * cell above the ground — meaning the surface flickers between ice and rock
+   * depending on sub-pixel resting position. Sampling strictly inside the tile
+   * below removes that whole class of off-by-one.
+   */
+  get groundProbe(): { x: number; y: number } {
+    const body = this.arcade;
+    return { x: body.center.x, y: body.bottom + 1 };
+  }
+
   respawn(): void {
     this.arcade.reset(this.spawnX, this.spawnY);
     this.arcade.setVelocity(0, 0);
@@ -65,9 +85,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.jumpBufferMs = 0;
   }
 
-  tick(deltaMs: number, input: InputState): void {
+  tick(deltaMs: number, input: InputState, surface: Surface): void {
     const body = this.arcade;
     const grounded = body.blocked.down;
+
+    // Horizontal tuning for whatever is underfoot. Like drag, this is only
+    // ever consulted while grounded — see the note in the horizontal block.
+    const tune = groundTuning(surface);
 
     // ---- 1. forgiveness windows ------------------------------------------
     this.coyoteMs = grounded
@@ -100,11 +124,18 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     if (dir !== 0) {
       const moving = Math.sign(body.velocity.x);
       const isTurning = moving !== 0 && moving !== dir;
-      const accel = isTurning
-        ? MOVE.TURN_ACCEL
-        : grounded
-          ? MOVE.GROUND_ACCEL
-          : MOVE.AIR_ACCEL;
+      // Ground and air are resolved SEPARATELY, because `isTurning` is decided
+      // before `grounded`. Folding the surface tuning into a single ternary
+      // would make airborne turning read `tune.turn` — the hero would turn
+      // differently in mid-air depending on what it had jumped off.
+      //
+      // The air branch deliberately preserves the milestone-1 behaviour,
+      // including that a mid-air turn uses TURN_ACCEL rather than AIR_ACCEL.
+      // That is snappier than accelerating from rest in the air; it is kept
+      // rather than silently "fixed" here.
+      const airAccel = isTurning ? MOVE.TURN_ACCEL : MOVE.AIR_ACCEL;
+      const groundAccel = isTurning ? tune.turn : tune.accel;
+      const accel = grounded ? groundAccel : airAccel;
 
       body.setAccelerationX(dir * accel);
       // Acceleration and drag are mutually exclusive in Phaser anyway, but be
@@ -114,7 +145,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     } else {
       body.setAccelerationX(0);
       // Friction on the ground; ZERO in the air so jump momentum survives.
-      body.setDragX(grounded ? MOVE.GROUND_DRAG : MOVE.AIR_DRAG);
+      body.setDragX(grounded ? tune.drag : MOVE.AIR_DRAG);
     }
 
     // ---- 5. asymmetric gravity -------------------------------------------

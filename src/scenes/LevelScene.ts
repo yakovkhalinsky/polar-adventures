@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { buildLevel } from '../level/buildLevel';
+import { buildLevel, type BuiltLevel } from '../level/buildLevel';
 import { LEVEL_01 } from '../level/levels';
 import { Controls } from '../input/controls';
 import { Player } from '../objects/Player';
@@ -8,13 +8,18 @@ import { TEX } from '../art/placeholders';
 export class LevelScene extends Phaser.Scene {
   private player!: Player;
   private controls!: Controls;
+  // Kept, not destructured away: the scene owns the level so it can ask what
+  // is under the hero's feet each frame.
+  private level!: BuiltLevel;
 
   constructor() {
     super('Level');
   }
 
   create(): void {
-    const { map, solidLayer, oneWayGroup, spawn } = buildLevel(this, LEVEL_01);
+    const level = buildLevel(this, LEVEL_01);
+    this.level = level;
+    const { map, solidLayer, oneWayGroup, spawn } = level;
 
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     // Bounds collision args are (left, right, up, down). Down is OFF so pits
@@ -47,7 +52,8 @@ export class LevelScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    this.player.tick(delta, this.controls.read());
+    const { x, y } = this.player.groundProbe;
+    this.player.tick(delta, this.controls.read(), this.level.surfaceAt(x, y));
 
     // Fell out of the world.
     if (this.player.y > this.physics.world.bounds.bottom + 64) {

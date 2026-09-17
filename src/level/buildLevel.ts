@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TILE_SIZE } from '../config/game';
 import { TEX, TILE_INDEX } from '../art/placeholders';
+import type { Surface } from '../config/movement';
 import type { LevelSource } from './levels';
 
 export type BuiltLevel = {
@@ -8,6 +9,12 @@ export type BuiltLevel = {
   solidLayer: Phaser.Tilemaps.TilemapLayer;
   oneWayGroup: Phaser.Physics.Arcade.StaticGroup;
   spawn: Phaser.Math.Vector2;
+  /**
+   * What is under a world point. This lives on the built level rather than on
+   * the hero so that the tile-index -> surface mapping stays in the one file
+   * that knows the level format; the hero never holds a TilemapLayer.
+   */
+  surfaceAt: (worldX: number, worldY: number) => Surface;
 };
 
 /**
@@ -94,7 +101,13 @@ export function buildLevel(
 
   // Solids collide on all four faces. Applied before anything else, because
   // setCollision sets all four flags and would clobber a one-way override.
-  layer.setCollision([TILE_INDEX.SOLID]);
+  //
+  // ICE MUST BE LISTED HERE. setCollision is a whitelist by index, not "make
+  // everything solid" — a tile index left out has all four collide flags false,
+  // so the hero falls straight through it and `blocked.down` never becomes true
+  // there, which silently makes the surface undetectable rather than merely
+  // non-solid.
+  layer.setCollision([TILE_INDEX.SOLID, TILE_INDEX.ICE]);
 
   // ---- one-way platforms -------------------------------------------------
   // Deliberately kept OUT of the tilemap. Tile-level one-way does work, but it
@@ -148,6 +161,22 @@ export function buildLevel(
     }
   }
 
+  // ---- surface probe -----------------------------------------------------
+  /**
+   * `nonNull = true` matters: for an in-bounds blank cell getTileAt returns
+   * null by default and the Tile object (with `index === -1`) only when asked.
+   * Passing it collapses "blank cell" and "nothing there" into one `index`
+   * test instead of a null-guard plus a comparison.
+   */
+  const surfaceAt = (worldX: number, worldY: number): Surface => {
+    const tile = layer.getTileAt(
+      layer.worldToTileX(worldX),
+      layer.worldToTileY(worldY),
+      true,
+    );
+    return tile && tile.index === TILE_INDEX.ICE ? 'ice' : 'rock';
+  };
+
   return {
     map,
     solidLayer: layer,
@@ -156,5 +185,6 @@ export function buildLevel(
       (foundSpawn.x + 0.5) * TILE_SIZE,
       (foundSpawn.y + 0.5) * TILE_SIZE,
     ),
+    surfaceAt,
   };
 }

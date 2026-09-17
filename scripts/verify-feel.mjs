@@ -118,6 +118,25 @@ try {
     await sleep(500);
   };
 
+  const playerX = () =>
+    page.evaluate(() => window.game.scene.getScene('Level').player.x);
+
+  /**
+   * Run right from spawn and jump the 2-tile pit at columns 10-11, leaving the
+   * hero on the ice patch (columns 13-24) at full speed with ArrowRight still
+   * held. Polls position rather than sleeping a fixed time, so it stays correct
+   * if the tuning constants change.
+   */
+  const runOntoIce = async () => {
+    const deadline = Date.now() + 8000;
+    await page.keyboard.down('ArrowRight');
+    while ((await playerX()) < 292 && Date.now() < deadline) await sleep(30);
+    await page.keyboard.down('ArrowUp');
+    await sleep(420);
+    await page.keyboard.up('ArrowUp');
+    while ((await playerX()) < 500 && Date.now() < deadline) await sleep(30);
+  };
+
   const baseline = await page.evaluate(() => {
     const p = window.game.scene.getScene('Level').player;
     return { x: p.x, y: p.y, groundTop: 13 * 32 };
@@ -237,6 +256,80 @@ try {
     'one-way platforms have exactly the right collision faces',
     allCorrectFlags,
     JSON.stringify(oneWay),
+  ]);
+
+  // ---- 7. surface detection ---------------------------------------------
+  // Sample inside row 13 (the ground surface, y 416-448). x=600 is inside the
+  // ice patch, x=80 is the rock at spawn.
+  const surfaces = await page.evaluate(() => {
+    const s = window.game.scene.getScene('Level');
+    const y = 13 * 32 + 4;
+    return { ice: s.level.surfaceAt(600, y), rock: s.level.surfaceAt(80, y) };
+  });
+  results.push([
+    'surfaceAt distinguishes ice from rock',
+    surfaces.ice === 'ice' && surfaces.rock === 'rock',
+    `x=600 -> ${surfaces.ice}, x=80 -> ${surfaces.rock}`,
+  ]);
+
+  // ---- 8. ice keeps you sliding -----------------------------------------
+  // The whole point of the mechanic. Released at top speed, rock stops in
+  // ~13px (check 5); ice must coast dramatically further. Asserted as a
+  // relationship, not an exact distance, so ICE.* can be tuned by feel without
+  // rewriting this test.
+  await reset();
+  await runOntoIce();
+  const iceRelease = await page.evaluate(() => {
+    const p = window.game.scene.getScene('Level').player;
+    return { x: p.x, vx: p.body.velocity.x };
+  });
+  await page.keyboard.up('ArrowRight');
+  await sleep(2000); // ice drag is 120px/s^2, so 160px/s takes ~1.33s to stop
+  const iceStop = await page.evaluate(() => {
+    const p = window.game.scene.getScene('Level').player;
+    return { x: p.x, vx: p.body.velocity.x };
+  });
+  const iceSlide = iceStop.x - iceRelease.x;
+  results.push([
+    'ice: released at speed, the hero keeps sliding (>= 60px)',
+    iceSlide >= 60 && Math.abs(iceStop.vx) < 1,
+    `slid ${iceSlide.toFixed(1)}px from vx ${iceRelease.vx.toFixed(0)} ` +
+      `at x=${iceRelease.x.toFixed(0)}, final vx ${iceStop.vx.toFixed(1)}`,
+  ]);
+
+  // ---- 9. surface tuning must not leak into the air ---------------------
+  // Guards a hazard that is easy to write by accident: `isTurning` is evaluated
+  // BEFORE `grounded`, so a carelessly folded ternary makes a mid-air turn read
+  // the surface's turn constant — over ice, 700px/s^2 instead of TURN_ACCEL's
+  // 2600. The hero would handle differently in the air depending on what it had
+  // jumped off, which is exactly what the design forbids.
+  //
+  // This pokes the state directly rather than doing it behaviourally, and it
+  // has to: while airborne the ground probe samples empty air, so surfaceAt
+  // returns 'rock' and a real mid-air jump can never exercise the ice branch.
+  // Calling tick() with each surface forced is the only way to compare them.
+  const leak = await page.evaluate(() => {
+    const p = window.game.scene.getScene('Level').player;
+    const turning = { left: true, right: false, jumpDown: false, jumpPressed: false };
+    const airborne = () => {
+      p.body.blocked.down = false; // force the air branch
+      p.body.setVelocityX(160); // moving right, input says left -> isTurning
+      p.body.setVelocityY(-100);
+    };
+    airborne();
+    p.tick(16, turning, 'ice');
+    const onIce = Math.abs(p.body.acceleration.x);
+    airborne();
+    p.tick(16, turning, 'rock');
+    const onRock = Math.abs(p.body.acceleration.x);
+    p.respawn();
+    return { onIce, onRock };
+  });
+  results.push([
+    'air tuning ignores the surface underfoot',
+    leak.onIce === leak.onRock && leak.onIce >= 2000,
+    `mid-air turn accel: ${leak.onIce} over ice vs ${leak.onRock} over rock ` +
+      `(ICE.TURN would be 700, AIR_ACCEL 750, TURN_ACCEL 2600)`,
   ]);
 
   // ---- report ----------------------------------------------------------
