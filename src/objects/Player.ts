@@ -45,7 +45,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // through 1-tile gaps without pixel-hunting the edge, and 30 tall so it
     // reads as standing on the tile rather than floating above it.
     this.arcade.setSize(16, 30);
-    this.arcade.setOffset(4, 2); // feet flush with the sprite's bottom edge
+    // Top starts 2px down, clearing the ears; the bottom lands on the sprite's
+    // last row, which the outline pass paints — so the feet read as planted on
+    // the ground rather than hovering a pixel above it.
+    this.arcade.setOffset(4, 2);
 
     this.arcade.setCollideWorldBounds(true);
 

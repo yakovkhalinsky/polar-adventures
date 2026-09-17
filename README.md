@@ -95,7 +95,7 @@ without a display, driving the real game in headless Chromium:
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm run smoke       # 14 checks — boots the game, asserts the runtime state
+npm run smoke       # 17 checks — boots the game, asserts the runtime state
 npm run verify      # 10 checks — measures the movement claims above
 ```
 
@@ -157,6 +157,21 @@ The concept art in that folder is art direction, not shipped assets.
 The **green scarf is not decoration.** It exists to solve white-on-white
 silhouette readability when a cream-furred bear stands on snow, and it is in the
 placeholder for exactly the same reason it is in the concept art.
+
+The scarf cannot carry that job alone, though. The fur highlight is `#F2F5F8`
+against snow at `#EAF2F8` — a few percent apart — so the hero is also drawn with
+a 1px near-black rim. That rim is applied as a pass over the finished pixels
+rather than hand-drawn, because an outline belongs to the *silhouette* and not
+to any one shape; drawing it as rects would mean re-deriving every edge by hand
+and keeping the two in sync forever. It also means the art has to stay 1px
+inside the texture, or the rim gets clipped.
+
+Three smoke checks guard the sprite, reading the generated texture back so they
+assert what was *drawn* rather than what the code intended: that the rim exists,
+that no art touches the texture edge, and that **the face is not mirrored** —
+the muzzle and the eye must stay on the same side of the head. That last one
+guards a real bug: the snout was drawn on the opposite side from the eye, which
+is wrong in *both* orientations because `setFlipX` mirrors the whole sprite.
 
 Worth recording, since it shaped the pipeline: FLUX produces good art direction
 but **does not produce grid-aligned sprite sheets** — the requested 4×3

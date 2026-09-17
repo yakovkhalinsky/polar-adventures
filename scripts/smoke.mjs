@@ -123,6 +123,84 @@ try {
       }
     }
 
+    // ---- hero sprite structure ------------------------------------------
+    // Read the generated texture back, so these assert what was DRAWN rather
+    // than what the code intended. The two palette values are duplicated from
+    // src/art/placeholders.ts deliberately: silently recolouring the outline or
+    // the muzzle should fail here instead of passing unnoticed.
+    const heroSprite = (() => {
+      const src = game.textures.get('ph-hero').getSourceImage();
+      const c = document.createElement('canvas');
+      c.width = src.width;
+      c.height = src.height;
+      const hctx = c.getContext('2d');
+      hctx.drawImage(src, 0, 0);
+      const d = hctx.getImageData(0, 0, src.width, src.height).data;
+      const at = (x, y) =>
+        x < 0 || y < 0 || x >= src.width || y >= src.height
+          ? null
+          : [
+              d[(y * src.width + x) * 4],
+              d[(y * src.width + x) * 4 + 1],
+              d[(y * src.width + x) * 4 + 2],
+              d[(y * src.width + x) * 4 + 3],
+            ];
+      const is = (a, rgb) => !!a && a[0] === rgb[0] && a[1] === rgb[1] && a[2] === rgb[2];
+      const OPAQUE = (a) => !!a && a[3] >= 8;
+
+      const OUTLINE = [0x1b, 0x24, 0x30];
+      const MUZZLE = [0x6e, 0x7a, 0x8b];
+
+      let outlinePx = 0;
+      let edgeArtPx = 0;
+      let eyeN = 0;
+      let eyeSum = 0;
+      let mucN = 0;
+      let mucSum = 0;
+      for (let y = 0; y < src.height; y++) {
+        for (let x = 0; x < src.width; x++) {
+          const a = at(x, y);
+          const onRing =
+            x === 0 || y === 0 || x === src.width - 1 || y === src.height - 1;
+          const isOutline = is(a, OUTLINE);
+
+          if (isOutline) {
+            outlinePx++;
+          } else if (OPAQUE(a) && onRing) {
+            // Non-outline art reaching the outermost ring means there was no
+            // room to draw the rim outside it, so the silhouette is clipped
+            // there. The rim itself may sit on the ring — that is it working.
+            edgeArtPx++;
+          }
+
+          // Face band only. The scarf crosses the head at row 12, and the eye
+          // and nose share the outline's colour, so stay within rows 2..11.
+          // NOTE: no `continue` above — an early exit here silently zeroed the
+          // eye count, because every outline-coloured pixel is also a candidate
+          // for the eye/nose.
+          if (x >= 5 && x <= 18 && y >= 2 && y <= 11) {
+            if (isOutline) {
+              eyeN++;
+              eyeSum += x;
+            }
+            if (is(a, MUZZLE)) {
+              mucN++;
+              mucSum += x;
+            }
+          }
+        }
+      }
+      return {
+        outlinePx,
+        edgeArtPx,
+        eyeN,
+        muzzleN: mucN,
+        eyeX: eyeN ? Number((eyeSum / eyeN).toFixed(1)) : null,
+        muzzleX: mucN ? Number((mucSum / mucN).toFixed(1)) : null,
+        headCentreX: 12, // the head spans x5..18 inclusive
+      };
+    })();
+
     return {
       renderer: game.renderer.type === 2 ? 'WebGL' : 'Canvas',
       canvasBacking: [canvas.width, canvas.height],
@@ -143,6 +221,7 @@ try {
       oneWayStretched,
       iceTiles,
       iceCollides,
+      heroSprite,
       tilesFrames: game.textures.get('ph-tiles').getFrameNames().length,
       heroFrames: game.textures.get('ph-hero').getFrameNames().length,
     };
@@ -160,6 +239,21 @@ try {
     ['one-way runs collapsed into stretched bodies', report.oneWayStretched >= 1],
     ['level contains ice tiles', report.iceTiles > 0],
     ['ice tiles collide (index 3 is in the collision set)', report.iceCollides === true],
+    // The fur highlight is #F2F5F8 against snow at #EAF2F8; without the rim the
+    // head and legs disappear into a snow tile.
+    ['hero sprite is outlined', report.heroSprite.outlinePx >= 40],
+    // The outline is drawn OUTSIDE the art, so art touching the outermost ring
+    // clips it and the silhouette reads as broken.
+    ['hero art is inset (outline is not clipped)', report.heroSprite.edgeArtPx === 0],
+    // The hero faces right and setFlipX mirrors the whole sprite, so facial
+    // features on opposite sides would be wrong in BOTH orientations.
+    [
+      'hero face is not mirrored (muzzle and eye on the same side)',
+      report.heroSprite.eyeN > 0 &&
+        report.heroSprite.muzzleN > 0 &&
+        report.heroSprite.eyeX > report.heroSprite.headCentreX &&
+        report.heroSprite.muzzleX > report.heroSprite.headCentreX,
+    ],
     // A createCanvas texture has one base frame unless frames are added. The
     // one-way platform sprites index this texture by tile, and without frames
     // Phaser silently falls back to the whole 128x32 strip.
