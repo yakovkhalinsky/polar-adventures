@@ -13,7 +13,7 @@ collectibles and no goal. What exists is a hero that is genuinely good to
 control, and one mechanic — ice — that changes how it moves. The feel of both is
 *measured* rather than asserted.
 
-> "It boots" says nothing about whether the jump is 3.5 tiles.
+> "It boots" says nothing about whether the jump is 3.5 hero-heights.
 
 | Controls | |
 |---|---|
@@ -29,7 +29,7 @@ Hold jump to go higher, tap it to hop. Both are deliberate — see below.
 computed from them:
 
 ```
-JUMP_HEIGHT_PX = 3.5 tiles     APEX_TIME_S = 0.40
+JUMP_HEIGHT_PX = 3.5 hero-heights     APEX_TIME_S = 0.40
         ↓
 GRAVITY_RISE = 2h/t²   JUMP_VELOCITY = 2h/t
 ```
@@ -42,11 +42,11 @@ clamp guarantees a minimum hop while a multiplier's result depends on when you
 happened to release.
 
 One subtlety worth knowing: Phaser integrates with semi-implicit Euler at a
-fixed 60 Hz, so the closed-form 112px target lands at **107.3px** in the running
+fixed 60 Hz, so the closed-form 434px target lands at **415.9px** in the running
 game. The constants stay as readable design intent and the gap is documented and
 asserted, rather than the constant being fudged to compensate.
 
-![The same frame with the Arcade physics debug overlay on: a magenta 16x30 hitbox inside the 24px hero sprite, and a blue one-way platform body](docs/physics-debug.png)
+![The same frame with the Arcade physics debug overlay on: a magenta 61x116 hitbox inside the 95px hero sprite, and a blue one-way platform body](docs/physics-debug.png)
 
 *The debug overlay (<kbd>F1</kbd>). The hero's hitbox is deliberately narrower
 than its art so it fits through one-tile gaps without pixel-hunting the edge.
@@ -70,16 +70,44 @@ slippery while steering. Three numbers have to move together, all in
 
 | | rock | ice |
 |---|---|---|
-| acceleration | 1300 px/s² | 420 px/s² |
-| turn acceleration | 2600 px/s² | 700 px/s² |
-| drag (after release) | 1500 px/s² | 120 px/s² |
+| acceleration | 5038 px/s² | 1628 px/s² |
+| turn acceleration | 10075 px/s² | 2713 px/s² |
+| drag (after release) | 5813 px/s² | 465 px/s² |
 
-Measured effect: released at top speed, the hero stops in **9.9px on rock** and
-coasts **108px on ice**.
+Measured effect: released at top speed, the hero stops in **38.4px on rock** and
+coasts **418.5px on ice**.
 
 The ice is placed after the pit so the rock-friction check still runs on rock,
 and clear of the plateau wall so a slide is never cut short by a collision — the
 level layout is load-bearing for the tests, not just for looks.
+
+## Pixel scale
+
+The game renders at **960×540 internal**, doubled to 1080p, with **1 art pixel =
+1 game pixel** everywhere — nothing is resampled, which is what lets concept art
+drop in at its native size instead of being crushed into a sprite slot.
+
+| | size |
+|---|---|
+| screen | 960 × 540 — exactly 2× at 1080p |
+| collision tile | 70 × 67 — a 2×3 group of drawn bricks, near square |
+| hero | 95 × 124, hitbox 61 × 116 |
+| jump | 434px = 3.5 hero-heights |
+
+The design targets are expressed in **hero heights**, not tiles. Those used to be
+the same number — the hero was exactly one tile — so nothing ever forced a
+choice between them. After the rescale the hero is 1.85 tiles, and a "3.5 tile
+jump" would have been 0.6 hero-heights: the hero could barely hop over its own
+feet. `movement.ts` now says `HERO_H` out loud.
+
+Rescaling also surfaced a failure that is invisible until it bites. **Phaser
+discards a tile collision outright when the overlap exceeds `tileBias`**
+(`TileCheckY`: `oy = body.bottom - tileTop; if (oy > tileBias) oy = 0`), and the
+default is 16. That is fine while a body moves less than 16px per frame and
+silently tunnels through the floor the moment it does not. At this scale a
+falling hero moves ~36px per frame, so `tileBias` is raised to 64. The failure
+is intermittent rather than total — it depends on the sub-pixel phase at the
+contact frame — so it presents as flakiness, not as an obvious bug.
 
 ## Running it
 
@@ -104,21 +132,21 @@ scene's own update loop, then drives real key presses and checks the results
 against what `movement.ts` claims:
 
 ```
-PASS  held jump apex ~112px (3.5 tiles)     apex 107.3px (3.35 tiles)
-PASS  tap jump has a floor (>= 39px)        apex 53.7px (1.68 tiles)
-PASS  run reaches max speed 160px/s         max |vx| 160px/s
-PASS  ground friction stops crisply         slid 9.9px, final vx 0.0
-PASS  standing still: y is stable           y range 0.000px over 61 frames
-PASS  surfaceAt distinguishes ice from rock x=600 -> ice, x=80 -> rock
-PASS  ice: released at speed, hero slides   slid 108.0px from vx 160
-PASS  air tuning ignores the surface        mid-air turn 2600 over ice and rock
+PASS  held jump apex ~434px (3.5 hero-heights)  apex 415.9px (3.35 hero-heights)
+PASS  tap jump has a floor (>= 151px)           apex 208.0px (1.68 hero-heights)
+PASS  run reaches max speed 620px/s             max |vx| 620px/s
+PASS  ground friction stops crisply             slid 38.4px, final vx 0.0
+PASS  standing still: y is stable               y range 0.000px over 60 frames
+PASS  surfaceAt distinguishes ice from rock     x=1500 -> ice, x=80 -> rock
+PASS  ice: released at speed, hero slides       slid 418.5px from vx 620
+PASS  air tuning ignores the surface            mid-air turn 10075 over ice and rock
 ```
 
 Three of those guard specific decisions. The standing-still check protects the
 choice to leave gravity *on* while grounded rather than zeroing it, which would
 make the body oscillate on a two-frame cycle and visibly shimmer by one pixel.
 The ice checks are written as **relationships rather than exact distances**
-(over 60px of slide, versus under 32px on rock), so the ice constants can be
+(over 232px of slide, versus under 124px on rock), so the ice constants can be
 tuned by feel without the suite fighting back. And the air-tuning check exists
 because `isTurning` is evaluated before `grounded`, which makes it easy to
 accidentally fold the surface into air control — a bug that is invisible in

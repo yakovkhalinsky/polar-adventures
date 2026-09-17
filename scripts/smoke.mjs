@@ -72,6 +72,11 @@ try {
 
   const page = await browser.newPage();
 
+  // A viewport larger than the game's 960x540, so Phaser's FIT scaler has to
+  // scale the canvas UP. Puppeteer's 800x600 default is smaller than the game
+  // now, which would scale it down and make the crispness check meaningless.
+  await page.setViewport({ width: 1280, height: 720 });
+
   page.on('console', (msg) => {
     const text = `${msg.type()}: ${msg.text()}`;
     consoleLines.push(text);
@@ -173,12 +178,13 @@ try {
             edgeArtPx++;
           }
 
-          // Face band only. The scarf crosses the head at row 12, and the eye
-          // and nose share the outline's colour, so stay within rows 2..11.
+          // Face band only: the head box above the scarf, which starts at y47.
+          // The eye and nose share the outline's colour, so this range is what
+          // separates them from the rim itself.
           // NOTE: no `continue` above — an early exit here silently zeroed the
           // eye count, because every outline-coloured pixel is also a candidate
           // for the eye/nose.
-          if (x >= 5 && x <= 18 && y >= 2 && y <= 11) {
+          if (x >= 18 && x <= 76 && y >= 8 && y <= 44) {
             if (isOutline) {
               eyeN++;
               eyeSum += x;
@@ -197,7 +203,7 @@ try {
         muzzleN: mucN,
         eyeX: eyeN ? Number((eyeSum / eyeN).toFixed(1)) : null,
         muzzleX: mucN ? Number((mucSum / mucN).toFixed(1)) : null,
-        headCentreX: 12, // the head spans x5..18 inclusive
+        headCentreX: 47, // the head spans x18..76 inclusive
       };
     })();
 
@@ -228,20 +234,20 @@ try {
   });
 
   const checks = [
-    ['canvas backing store is 480x270', report.canvasBacking[0] === 480 && report.canvasBacking[1] === 270],
-    ['canvas CSS-scaled up', report.canvasDisplay[0] >= 480],
+    ['canvas backing store is 960x540', report.canvasBacking[0] === 960 && report.canvasBacking[1] === 540],
+    ['canvas CSS-scaled up', report.canvasDisplay[0] >= 960],
     ['image-rendering is pixelated', report.imageRendering === 'pixelated'],
     ['player exists', report.player !== null],
-    ['player hitbox is 16x30', report.player?.w === 16 && report.player?.h === 30],
+    ['player hitbox is 61x116', report.player?.w === 61 && report.player?.h === 116],
     ['player collides with world bounds', report.player?.collidesWorld === true],
-    ['max velocity caps jump, not fall (y=560)', report.player?.maxVel[1] === 560],
+    ['max velocity caps jump, not fall (y=2170)', report.player?.maxVel[1] === 2170],
     ['one-way platform bodies built', report.oneWayBodies >= 2],
     ['one-way runs collapsed into stretched bodies', report.oneWayStretched >= 1],
     ['level contains ice tiles', report.iceTiles > 0],
     ['ice tiles collide (index 3 is in the collision set)', report.iceCollides === true],
     // The fur highlight is #F2F5F8 against snow at #EAF2F8; without the rim the
     // head and legs disappear into a snow tile.
-    ['hero sprite is outlined', report.heroSprite.outlinePx >= 40],
+    ['hero sprite is outlined', report.heroSprite.outlinePx >= 250],
     // The outline is drawn OUTSIDE the art, so art touching the outermost ring
     // clips it and the silhouette reads as broken.
     ['hero art is inset (outline is not clipped)', report.heroSprite.edgeArtPx === 0],

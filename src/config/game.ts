@@ -3,16 +3,32 @@ import { BootScene } from '../scenes/BootScene';
 import { LevelScene } from '../scenes/LevelScene';
 
 /**
- * Internal render resolution. 480x270 is exactly 16:9 and exactly 4x at
+ * Internal render resolution. 960x540 is exactly 16:9 and exactly 2x at
  * 1920x1080, so fullscreen at 1080p gets perfect integer pixel scaling.
- * 512x288 is also 16:9 but is 3.75x at 1080p — non-integer, which makes some
- * pixels 4 screen-px wide and others 3.
+ *
+ * Upscaling is what makes pixel art read as pixel art, which is why this is
+ * not set to 1920x1080 even though the art could fill it: at 540 the frame is
+ * doubled to 1080p, so each art pixel covers 2x2 screen pixels. At native 1080p
+ * the hero would be a 124px character on a 1080p monitor — small, and no
+ * chunkier than any other game.
  */
-export const GAME_WIDTH = 480;
-export const GAME_HEIGHT = 270;
+export const GAME_WIDTH = 960;
+export const GAME_HEIGHT = 540;
 
-/** All level geometry and all art is authored on this grid. */
-export const TILE_SIZE = 32;
+/**
+ * The collision grid, in game pixels. All level geometry is authored on it.
+ *
+ * These are NOT the same as the art's tile: one drawn ice brick is 35x22, which
+ * is neither square nor a useful collision unit. A collision tile is a 2x3
+ * GROUP of bricks — 70x67, near square — which is what makes the hero come out
+ * a sane 1.85 tiles tall instead of 5.55.
+ *
+ * Width and height differ, and that is fine: `buildLevel` and Phaser's tilemap
+ * both take them separately, and the level is authored as rows and columns
+ * either way. Only physics maths has to care.
+ */
+export const TILE_W = 70;
+export const TILE_H = 67;
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -53,6 +69,22 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       // zero here makes `body.setGravityY()` the single readable source of
       // truth for the asymmetric rise/fall gravity the feel depends on.
       gravity: { x: 0, y: 0 },
+
+      // THE most important number in this file, and the one that is invisible
+      // until it breaks. Phaser discards a tile collision outright when the
+      // overlap exceeds this value: `TileCheckY` does `oy = body.bottom -
+      // tileTop; if (oy > tileBias) oy = 0`. The default of 16 is fine while a
+      // body moves less than 16px per frame, and silently tunnels through the
+      // floor the moment it does not.
+      //
+      // A falling hero here moves MAX_FALL_SPEED/60 + one frame of gravity =
+      // 2015/60 + 148 = ~36px per frame, so the default 16 tunnelled. 64 gives
+      // headroom over both the fall (36px) and the jump launch (2170/60 = 36px).
+      // Re-check this if MAX_FALL_SPEED, JUMP_VELOCITY or GRAVITY_FALL_RISE go
+      // up — and note the failure is intermittent, not total: it depends on the
+      // sub-pixel phase at the contact frame, so it looks like flakiness.
+      tileBias: 64,
+
       debug: false, // also toggleable at runtime with F1
     },
   },

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { buildLevel, type BuiltLevel } from '../level/buildLevel';
 import { LEVEL_01 } from '../level/levels';
+import { HERO_H } from '../config/movement';
 import { Controls } from '../input/controls';
 import { Player } from '../objects/Player';
 import { TEX } from '../art/placeholders';
@@ -26,7 +27,9 @@ export class LevelScene extends Phaser.Scene {
     // are actually fatal and therefore testable.
     this.physics.world.setBoundsCollision(true, true, true, false);
 
-    this.player = new Player(this, spawn.x, spawn.y, TEX.hero);
+    // `spawn` is where the hero's feet go, so the sprite centre sits half a
+    // hero above it.
+    this.player = new Player(this, spawn.x, spawn.y - HERO_H / 2, TEX.hero);
     this.controls = new Controls(this);
 
     this.physics.add.collider(this.player, solidLayer);

@@ -41,14 +41,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
-    // Hitbox is deliberately narrower than the 24px art so the hero fits
-    // through 1-tile gaps without pixel-hunting the edge, and 30 tall so it
-    // reads as standing on the tile rather than floating above it.
-    this.arcade.setSize(16, 30);
-    // Top starts 2px down, clearing the ears; the bottom lands on the sprite's
+    // Hitbox is deliberately narrower than the 95px art so the hero fits
+    // through gaps without pixel-hunting the edge, and 116 tall so it reads as
+    // standing on the tile rather than floating above it.
+    this.arcade.setSize(61, 116);
+    // Top starts 8px down, clearing the ears; the bottom lands on the sprite's
     // last row, which the outline pass paints — so the feet read as planted on
     // the ground rather than hovering a pixel above it.
-    this.arcade.setOffset(4, 2);
+    this.arcade.setOffset(17, 8);
 
     this.arcade.setCollideWorldBounds(true);
 

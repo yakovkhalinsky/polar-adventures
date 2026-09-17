@@ -9,24 +9,31 @@ export type LevelSource = {
 };
 
 /**
- * Milestone 1 level. 48 x 16 tiles of 32px = 1536 x 512 world pixels,
- * about 3.2 screens wide and 1.9 screens tall at 480x270.
+ * Milestone 1 level, rescaled to the assets' native pixel scale.
+ * 64 x 24 tiles of 70x67 = 4480 x 1608 world pixels, about 36 x 13
+ * hero-heights — close to the 48 x 16 the old 32px-tile level covered.
  *
  * Legend:
  *   .  empty          #  solid          =  one-way platform
- *   P  player spawn
+ *   ~  ice            P  player spawn
  *
- * Height budget, from the constants in config/movement.ts:
- *   jump apex  3.5 tiles  -> a 3-tile ledge is comfortable, a 4-tile one is impossible
- *   min hop    1.2 tiles  -> the tap-to-hold expressive range
- *   gap reach  3.55 tiles at full run, flat
+ * Height budget, from the constants in config/movement.ts. These are quoted in
+ * COLLISION TILES (67px) because that is what the rows below are counted in,
+ * but the design targets are in HERO HEIGHTS (124px), since that is what the
+ * hero actually is:
+ *   jump apex  3.5 hero-heights = 6.5 tiles -> a 6-tile ledge is comfortable,
+ *                                              a 9-tile one is impossible
+ *   min hop    1.2 hero-heights = 2.3 tiles -> the tap-to-hold range
+ *   gap reach  6.6 tiles at full run, flat
  *
- * Every feature below tests exactly one thing. See the comments on each row.
+ * Every feature below tests exactly one thing, and each is sized against those
+ * numbers rather than against the old level's tile counts — a "3 tile ledge"
+ * meant 3 hero-heights when the hero was one tile tall, and means 1.6 now.
  */
 export const LEVEL_01: LevelSource = {
   name: 'feel-test-01',
-  tileWidth: 32,
-  tileHeight: 32,
+  tileWidth: 70,
+  tileHeight: 67,
   legend: {
     '.': -1, // -1 is how Phaser's Parse2DArray marks an empty cell
     '#': TILE_INDEX.SOLID,
@@ -38,25 +45,32 @@ export const LEVEL_01: LevelSource = {
     P: -1,
   },
   rows: [
-    '................................................', //  0
-    '................................................', //  1
-    '................................................', //  2
-    '................................................', //  3
-    '................................................', //  4
-    '................................................', //  5
-    '................................................', //  6
-    '................................................', //  7
-    '................................................', //  8
-    '.....##.........................................', //  9  low ceiling (bonk test)
-    '....................=====.......................', // 10  one-way, 3 tiles up
-    '.....##.......................#########.....====', // 11  plateau + one-way
-    '..P.........................###########.........', // 12  spawn + step-up
-    // Ice at the SURFACE only (row 13), cols 13-24 = world x 416..800, sitting
-    // on rock below so it reads as an ice sheet rather than stacked snow caps.
-    // Placed after the pit (cols 10-11) so the rock-friction check still runs on
-    // rock, and clear of the plateau wall (col 30) so a slide is never cut short.
-    '##########..#~~~~~~~~~~~~##############...######', // 13  pits + ice
-    '##########..###########################...######', // 14
-    '##########..###########################...######', // 15
+    '................................................................', //  0
+    '................................................................', //  1
+    '................................................................', //  2
+    '................................................................', //  3
+    '................................................................', //  4
+    '................................................................', //  5
+    '................................................................', //  6
+    '................................................................', //  7
+    '................................................................', //  8
+    '................................................................', //  9
+    '................................................................', // 10
+    '..........................................................######', // 11  out of reach (bonk test)
+    '..........................................................######', // 12
+    '..........................................................######', // 13
+    '............................#######...............======..######', // 14  plateau top + one-way
+    '............................#######.......................######', // 15
+    '............................#######.....======............######', // 16  one-way, 4 tiles up
+    '....####....................#######.......................######', // 17  low ceiling (bonk test)
+    '............................#######.......................######', // 18
+    '..P.........................#######.......................######', // 19  spawn
+    // Ice at the SURFACE only (row 20), cols 16-27, sitting on rock below.
+    // Placed after the pit so the rock-friction check still runs on rock, and
+    // clear of the plateau wall (col 28) so a slide is never cut short.
+    '##########....##~~~~~~~~~~~~####################################', // 20  pits + ice
+    '##########....##################################################', // 21
+    '##########....##################################################', // 22
+    '##########....##################################################', // 23
   ],
 };

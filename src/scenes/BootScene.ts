@@ -3,6 +3,7 @@ import {
   makePlaceholderHero,
   makePlaceholderTiles,
 } from '../art/placeholders';
+import { TILE_H } from '../config/game';
 import { DERIVED, MOVE } from '../config/movement';
 
 /**
@@ -24,11 +25,16 @@ export class BootScene extends Phaser.Scene {
 
     // The tuning readout. If these numbers don't match what you intended, the
     // constants and the code have drifted apart.
+    //
+    // The design targets are in HERO HEIGHTS; tiles are shown too because level
+    // geometry is authored in them. They used to be the same number, which is
+    // exactly the confusion the rescale introduced.
     console.info(
-      '[polar] jump apex %s tiles (%s px) | min hop %s px | rise %ss | ' +
-        'run-up %ss | coyote %sms | buffer %sms',
-      DERIVED.apexTiles.toFixed(2),
+      '[polar] jump apex %s hero-heights (%s px, %s tiles) | min hop %s px | ' +
+        'rise %ss | run-up %ss | coyote %sms | buffer %sms',
+      DERIVED.apexHeroes.toFixed(2),
       DERIVED.apexPx.toFixed(0),
+      (DERIVED.apexPx / TILE_H).toFixed(2),
       DERIVED.minJumpPx.toFixed(0),
       DERIVED.riseSeconds.toFixed(2),
       DERIVED.runUpSeconds.toFixed(2),

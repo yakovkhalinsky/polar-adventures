@@ -3,7 +3,11 @@
  *
  * Boots the real game and measures the movement constants against the claims
  * made in src/config/movement.ts. This is the milestone's actual acceptance
- * criterion — "it boots" says nothing about whether the jump is 3.5 tiles.
+ * criterion — "it boots" says nothing about whether the jump is 3.5 hero-heights.
+ *
+ * Every number here is in game pixels at the RESCALED size: 960x540 internal,
+ * 70x67 collision tiles, a 95x124 hero. The design targets are unchanged — the
+ * jump is still 3.5 hero-heights and the run still 5 hero-heights per second.
  *
  * Phaser steps Arcade physics at a fixed 60Hz by default, so these numbers are
  * framerate-independent and safe to assert.
@@ -122,24 +126,24 @@ try {
     page.evaluate(() => window.game.scene.getScene('Level').player.x);
 
   /**
-   * Run right from spawn and jump the 2-tile pit at columns 10-11, leaving the
-   * hero on the ice patch (columns 13-24) at full speed with ArrowRight still
+   * Run right from spawn and jump the 4-tile pit at columns 10-13, leaving the
+   * hero on the ice patch (columns 16-27) at full speed with ArrowRight still
    * held. Polls position rather than sleeping a fixed time, so it stays correct
    * if the tuning constants change.
    */
   const runOntoIce = async () => {
     const deadline = Date.now() + 8000;
     await page.keyboard.down('ArrowRight');
-    while ((await playerX()) < 292 && Date.now() < deadline) await sleep(30);
+    while ((await playerX()) < 640 && Date.now() < deadline) await sleep(30);
     await page.keyboard.down('ArrowUp');
     await sleep(420);
     await page.keyboard.up('ArrowUp');
-    while ((await playerX()) < 500 && Date.now() < deadline) await sleep(30);
+    while ((await playerX()) < 1250 && Date.now() < deadline) await sleep(30);
   };
 
   const baseline = await page.evaluate(() => {
     const p = window.game.scene.getScene('Level').player;
-    return { x: p.x, y: p.y, groundTop: 13 * 32 };
+    return { x: p.x, y: p.y, groundTop: 20 * 67 };
   });
 
   // ---- 1. standing stability -------------------------------------------
@@ -165,15 +169,15 @@ try {
   const fullJump = await page.evaluate(() => window.__end());
   const fullApex = baseline.y - fullJump.minY;
   results.push([
-    'held jump apex ~112px (3.5 tiles)',
-    Math.abs(fullApex - 112) <= 6,
-    `apex ${fullApex.toFixed(1)}px (${(fullApex / 32).toFixed(2)} tiles)`,
+    'held jump apex ~434px (3.5 hero-heights)',
+    Math.abs(fullApex - 434) <= 24,
+    `apex ${fullApex.toFixed(1)}px (${(fullApex / 124).toFixed(2)} hero-heights)`,
   ]);
 
   // ---- 3. tap jump has a floor -----------------------------------------
   // The claim in movement.ts is that the clamp guarantees a MINIMUM hop,
   // unlike a multiplier whose result depends on release timing. So a very
-  // short tap must still clear ~39px, and must be strictly less than a hold.
+  // short tap must still clear 1.22 hero-heights (151px), and be less than a hold.
   await reset();
   await page.evaluate(() => window.__begin());
   await page.keyboard.down('ArrowUp');
@@ -183,18 +187,18 @@ try {
   const tapJump = await page.evaluate(() => window.__end());
   const tapApex = baseline.y - tapJump.minY;
   results.push([
-    'tap jump has a floor (>= 39px)',
-    tapApex >= 39,
-    `apex ${tapApex.toFixed(1)}px (${(tapApex / 32).toFixed(2)} tiles)`,
+    'tap jump has a floor (>= 151px)',
+    tapApex >= 151,
+    `apex ${tapApex.toFixed(1)}px (${(tapApex / 124).toFixed(2)} hero-heights)`,
   ]);
   results.push([
     'tap jump is strictly shorter than held jump',
-    tapApex < fullApex - 10,
+    tapApex < fullApex - 39,
     `tap ${tapApex.toFixed(1)}px vs held ${fullApex.toFixed(1)}px`,
   ]);
 
   // ---- 4. run-up to top speed ------------------------------------------
-  // 160px/s at 1300px/s^2 = 0.123s to reach top speed.
+  // 620px/s at 5038px/s^2 = 0.123s to reach top speed.
   await reset();
   await page.evaluate(() => window.__begin());
   await page.keyboard.down('ArrowRight');
@@ -202,13 +206,13 @@ try {
   const runUp = await page.evaluate(() => window.__end());
   await page.keyboard.up('ArrowRight');
   results.push([
-    'run reaches max speed 160px/s',
-    Math.abs(runUp.maxVx - 160) <= 1,
+    'run reaches max speed 620px/s',
+    Math.abs(runUp.maxVx - 620) <= 2,
     `max |vx| ${runUp.maxVx}px/s over ${runUp.frames} frames`,
   ]);
 
   // ---- 5. ground friction stops crisply --------------------------------
-  // Release at full speed: drag is 1500px/s^2, so it should stop in ~0.11s.
+  // Release at full speed: drag is 5813px/s^2, so it should stop in ~0.11s.
   // Sample how far it travels after release.
   await reset();
   await page.keyboard.down('ArrowRight');
@@ -225,13 +229,13 @@ try {
   });
   const slideDist = afterStop.x - beforeRelease.x;
   results.push([
-    'ground friction stops crisply (< 32px slide)',
-    Math.abs(slideDist) < 32 && Math.abs(afterStop.vx) < 1,
+    'ground friction stops crisply (< 124px slide)',
+    Math.abs(slideDist) < 124 && Math.abs(afterStop.vx) < 1,
     `slid ${slideDist.toFixed(1)}px, final vx ${afterStop.vx.toFixed(1)}`,
   ]);
 
   // ---- 6. one-way platform: pass through from below --------------------
-  // Column 20-24 at row 10 is a one-way platform. Walking under it and
+  // Columns 40-45 at row 16 are a one-way platform. Walking under it and
   // jumping must NOT be blocked. This is the case the common
   // processCallback + velocity.y > 0 idiom gets wrong at the apex.
   const oneWay = await page.evaluate(() => {
@@ -263,13 +267,13 @@ try {
   // ice patch, x=80 is the rock at spawn.
   const surfaces = await page.evaluate(() => {
     const s = window.game.scene.getScene('Level');
-    const y = 13 * 32 + 4;
-    return { ice: s.level.surfaceAt(600, y), rock: s.level.surfaceAt(80, y) };
+    const y = 20 * 67 + 4;
+    return { ice: s.level.surfaceAt(1500, y), rock: s.level.surfaceAt(80, y) };
   });
   results.push([
     'surfaceAt distinguishes ice from rock',
     surfaces.ice === 'ice' && surfaces.rock === 'rock',
-    `x=600 -> ${surfaces.ice}, x=80 -> ${surfaces.rock}`,
+    `x=1500 -> ${surfaces.ice}, x=80 -> ${surfaces.rock}`,
   ]);
 
   // ---- 8. ice keeps you sliding -----------------------------------------
@@ -284,15 +288,15 @@ try {
     return { x: p.x, vx: p.body.velocity.x };
   });
   await page.keyboard.up('ArrowRight');
-  await sleep(2000); // ice drag is 120px/s^2, so 160px/s takes ~1.33s to stop
+  await sleep(2500); // ice drag is 465px/s^2, so 620px/s takes ~1.33s to stop
   const iceStop = await page.evaluate(() => {
     const p = window.game.scene.getScene('Level').player;
     return { x: p.x, vx: p.body.velocity.x };
   });
   const iceSlide = iceStop.x - iceRelease.x;
   results.push([
-    'ice: released at speed, the hero keeps sliding (>= 60px)',
-    iceSlide >= 60 && Math.abs(iceStop.vx) < 1,
+    'ice: released at speed, the hero keeps sliding (>= 232px)',
+    iceSlide >= 232 && Math.abs(iceStop.vx) < 1,
     `slid ${iceSlide.toFixed(1)}px from vx ${iceRelease.vx.toFixed(0)} ` +
       `at x=${iceRelease.x.toFixed(0)}, final vx ${iceStop.vx.toFixed(1)}`,
   ]);
@@ -327,9 +331,9 @@ try {
   });
   results.push([
     'air tuning ignores the surface underfoot',
-    leak.onIce === leak.onRock && leak.onIce >= 2000,
+    leak.onIce === leak.onRock && leak.onIce >= 8000,
     `mid-air turn accel: ${leak.onIce} over ice vs ${leak.onRock} over rock ` +
-      `(ICE.TURN would be 700, AIR_ACCEL 750, TURN_ACCEL 2600)`,
+      `(ICE.TURN would be 2713, AIR_ACCEL 2906, TURN_ACCEL 10075)`,
   ]);
 
   // ---- report ----------------------------------------------------------

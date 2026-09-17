@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TILE_SIZE } from '../config/game';
+import { TILE_W, TILE_H } from '../config/game';
 
 export const TEX = {
   hero: 'ph-hero',
@@ -130,9 +130,9 @@ function outlineSilhouette(
 }
 
 /**
- * 24x32 hero.
+ * 95x124 hero — the size the FLUX art actually needs.
  *
- * The art is inset 1px inside the canvas on every side (x2..21, y1..30) so
+ * The art is inset 1px inside the canvas on every side (x8..88, y4..122) so
  * outlineSilhouette has room to draw. Do not push a shape out to the edge.
  *
  * The hero FACES RIGHT: the eye and the snout are both right of the head's
@@ -141,32 +141,32 @@ function outlineSilhouette(
  * asserts they stay on the same side.
  */
 export function makePlaceholderHero(scene: Phaser.Scene): void {
-  const W = 24;
-  const H = 32;
+  const W = 95;
+  const H = 124;
   const tex = canvasTexture(scene, TEX.hero, W, H);
   const px = makePainter(tex.context, 0);
 
   // Draw order is load-bearing: each mass paints over the one before it, so the
   // torso hides the top of the legs and the head hides the top of the torso.
-  px(3, 12, 18, 15, PAL.furHi); // torso          y12-26
-  px(3, 22, 18, 5, PAL.furLo); // torso underside shading
-  px(4, 26, 6, 5, PAL.furDeep); // left leg      y26-30, drawn AFTER the
-  px(14, 26, 6, 5, PAL.furDeep); // right leg        shading so its top row shows
+  px(12, 47, 74, 58, PAL.furHi); // torso       y47-104
+  px(12, 86, 74, 19, PAL.furLo); // torso underside shading
+  px(14, 100, 23, 22, PAL.furDeep); // left leg  y100-122, drawn AFTER the
+  px(58, 100, 23, 22, PAL.furDeep); // right leg     shading so its top row shows
 
-  px(4, 1, 5, 5, PAL.furHi); // left ear         y1-5
-  px(15, 1, 5, 5, PAL.furHi); // right ear
-  px(5, 2, 14, 12, PAL.furHi); // head           x5-18, y2-13
-  // Muzzle sits at y7-10, leaving row 11 as fur: flush against the scarf band
-  // at y12 it read as a chin rather than a snout.
-  px(13, 7, 6, 4, PAL.muzzle); // muzzle         x13-18 — under the eye, right
-  // Nose is held 1px in from the muzzle's edge. At the very edge it merges
-  // with the outline, which is the same colour.
-  px(16, 7, 2, 2, PAL.eye); // nose
-  px(13, 5, 2, 2, PAL.eye); // eye               x13-14, right of centre
+  px(16, 4, 19, 19, PAL.furHi); // left ear      y4-22
+  px(59, 4, 19, 19, PAL.furHi); // right ear
+  px(18, 8, 59, 47, PAL.furHi); // head          x18-76, y8-54
+  // Muzzle sits at y28-44, leaving fur below it: flush against the scarf band
+  // it would read as a chin rather than a snout.
+  px(52, 28, 24, 17, PAL.muzzle); // muzzle    x52-75 — under the eye, right
+  // Nose is held in from the muzzle's edge. At the very edge it merges with the
+  // outline, which is the same colour.
+  px(64, 28, 8, 8, PAL.eye); // nose
+  px(52, 20, 8, 8, PAL.eye); // eye             x52-59, right of centre
 
-  px(2, 12, 20, 4, PAL.scarf); // scarf band
-  px(2, 12, 20, 1, PAL.scarfHi); // scarf highlight (the 1px crispness probe)
-  px(15, 16, 4, 7, PAL.scarf); // scarf tail
+  px(8, 47, 81, 17, PAL.scarf); // scarf band
+  px(8, 47, 81, 5, PAL.scarfHi); // scarf highlight
+  px(57, 64, 19, 31, PAL.scarf); // scarf tail
 
   outlineSilhouette(tex.context, W, H, PAL.outline);
 
@@ -174,22 +174,23 @@ export function makePlaceholderHero(scene: Phaser.Scene): void {
 }
 
 /**
- * Four 32x32 tiles in a 128x32 strip.
+ * Four tiles in a 280x67 strip, at the collision tile size (TILE_W x TILE_H).
  *
  * The tilemap renderer does NOT need texture frames — it computes tile UVs
  * from `Tileset.texCoordinates` against the whole texture. But any ordinary
  * sprite that references this texture by tile index DOES, and without frames
- * Phaser logs "has no frame" and silently falls back to the entire 128x32
- * strip. That is exactly what happens to the one-way platform sprites, so the
+ * Phaser logs "has no frame" and silently falls back to the entire strip.
+ * That is exactly what happens to the one-way platform sprites, so the
  * frames below are load-bearing, not tidiness.
  */
 export function makePlaceholderTiles(scene: Phaser.Scene): void {
-  const T = TILE_SIZE;
+  const W = TILE_W;
+  const H = TILE_H;
   const TILE_COUNT = 4;
-  const tex = canvasTexture(scene, TEX.tiles, T * TILE_COUNT, T);
+  const tex = canvasTexture(scene, TEX.tiles, W * TILE_COUNT, H);
   const ctx = tex.context;
 
-  const col = (index: number) => makePainter(ctx, index * T);
+  const col = (index: number) => makePainter(ctx, index * W);
   const px = (
     c: number,
     x: number,
@@ -200,29 +201,29 @@ export function makePlaceholderTiles(scene: Phaser.Scene): void {
   ) => col(c)(x, y, w, h, color);
 
   // 0: plain interior rock
-  px(0, 0, 0, T, T, PAL.rockLo);
+  px(0, 0, 0, W, H, PAL.rockLo);
 
   // 1: snow-capped solid ground
-  px(1, 0, 0, T, T, PAL.rock);
-  px(1, 0, 0, T, 8, PAL.snow);
-  px(1, 0, 8, T, 2, PAL.furLo);
-  px(1, 6, 16, 6, 4, PAL.rockLo);
-  px(1, 20, 22, 8, 4, PAL.rockLo);
+  px(1, 0, 0, W, H, PAL.rock);
+  px(1, 0, 0, W, 17, PAL.snow);
+  px(1, 0, 17, W, 4, PAL.furLo);
+  px(1, 13, 33, 13, 9, PAL.rockLo);
+  px(1, 44, 46, 17, 9, PAL.rockLo);
 
   // 2: one-way plank. The canvas starts transparent, so simply not drawing
   //    above and below the plank is what makes the rest see-through.
-  px(2, 0, 6, T, 8, PAL.plank);
-  px(2, 0, 6, T, 2, PAL.plankHi);
-  px(2, 0, 12, T, 2, PAL.rockLo);
+  px(2, 0, 13, W, 17, PAL.plank);
+  px(2, 0, 13, W, 4, PAL.plankHi);
+  px(2, 0, 25, W, 5, PAL.rockLo);
 
-  // 3: ice, reserved for the first real mechanic
-  px(3, 0, 0, T, T, PAL.ice);
-  px(3, 0, 0, T, 4, PAL.snow);
+  // 3: ice, the slippery surface
+  px(3, 0, 0, W, H, PAL.ice);
+  px(3, 0, 0, W, 9, PAL.snow);
 
   // One frame per tile, registered by tile index so `sprite.setFrame(2)` and
-  // `group.create(x, y, TEX.tiles, 2)` both resolve to a single 32x32 tile.
+  // `group.create(x, y, TEX.tiles, 2)` both resolve to a single tile.
   for (let i = 0; i < TILE_COUNT; i++) {
-    tex.add(i, 0, i * T, 0, T, T);
+    tex.add(i, 0, i * W, 0, W, H);
   }
 
   tex.refresh();

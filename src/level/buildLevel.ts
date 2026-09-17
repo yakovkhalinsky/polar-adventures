@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { TILE_SIZE } from '../config/game';
 import { TEX, TILE_INDEX } from '../art/placeholders';
 import type { Surface } from '../config/movement';
 import type { LevelSource } from './levels';
@@ -80,8 +79,8 @@ export function buildLevel(
   const tileset = map.addTilesetImage(
     'placeholder',
     TEX.tiles,
-    TILE_SIZE,
-    TILE_SIZE,
+    src.tileWidth,
+    src.tileHeight,
   );
   if (!tileset) throw new Error('placeholder tileset failed to attach');
 
@@ -130,13 +129,13 @@ export function buildLevel(
         // no chance of catching on the seam between two adjacent planks.
         const len = x - runStart;
         const plat = oneWayGroup.create(
-          (runStart + len / 2) * TILE_SIZE,
-          y * TILE_SIZE + TILE_SIZE / 2,
+          (runStart + len / 2) * src.tileWidth,
+          y * src.tileHeight + src.tileHeight / 2,
           TEX.tiles,
           TILE_INDEX.ONEWAY,
         );
 
-        plat.setDisplaySize(len * TILE_SIZE, TILE_SIZE);
+        plat.setDisplaySize(len * src.tileWidth, src.tileHeight);
         // A static body caches its size at creation, so it must be refreshed
         // after a display-size change or it keeps the original 32x32.
         plat.refreshBody();
@@ -181,9 +180,14 @@ export function buildLevel(
     map,
     solidLayer: layer,
     oneWayGroup,
+    // The BOTTOM-CENTRE of the spawn tile — i.e. where the hero's feet go, not
+    // its middle. That distinction never mattered while the hero was exactly
+    // one tile tall, so `(row + 0.5)` put the feet on the ground for free. With
+    // a 124px hero in a 67px tile it spawns buried, and tilemap separation
+    // pushes it the wrong way — through the floor — instead of out.
     spawn: new Phaser.Math.Vector2(
-      (foundSpawn.x + 0.5) * TILE_SIZE,
-      (foundSpawn.y + 0.5) * TILE_SIZE,
+      (foundSpawn.x + 0.5) * src.tileWidth,
+      (foundSpawn.y + 1) * src.tileHeight,
     ),
     surfaceAt,
   };
