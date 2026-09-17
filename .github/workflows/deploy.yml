@@ -1,0 +1,60 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-publish from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+# Least privilege. `id-token: write` is what lets deploy-pages prove the
+# artifact came from this workflow run rather than being handed in by hand.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A deploy that is already publishing should be allowed to finish — cancelling
+# it mid-flight can leave the Pages environment in a half-updated state.
+# `cancel-in-progress: false` queues the newest run behind it instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Vite 7 needs Node >= 20.19 or >= 22.12. 22 is the oldest line that
+          # satisfies it, which keeps the runner image choices wide.
+          node-version: 22
+          cache: npm
+
+      # `npm ci` over `npm install`: it installs the lockfile exactly and
+      # fails if package.json and the lockfile disagree, so CI cannot silently
+      # drift onto a different Phaser version than the one that was tested.
+      - run: npm ci
+
+      # This is `tsc --noEmit && vite build`, so a type error fails the deploy
+      # rather than shipping. Same command as `npm run build` locally.
+      - run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          # dist/ is gitignored and built here. Nothing built is ever committed.
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
