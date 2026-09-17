@@ -174,11 +174,22 @@ guards a real bug: the snout was drawn on the opposite side from the eye, which
 is wrong in *both* orientations because `setFlipX` mirrors the whole sprite.
 
 Worth recording, since it shaped the pipeline: FLUX produces good art direction
-but **does not produce grid-aligned sprite sheets** — the requested 4×3
-turnaround came back as a ragged 4/3/1 layout, and a generated run cycle was
-five near-identical poses rather than eight usable frames. Real locomotion needs
-one generation per pose. The tilesets were the surprise win and are usable after
-manual slicing; nothing has been sliced yet.
+but **nothing that a prompt can specify numerically**. Asked for a magenta key
+colour it returns gray; asked for a 24×32 sprite it returns full illustration
+detail; asked for tiles that fill their cell it returns rounded rectangles on a
+backdrop. What it does honour is anything it can see — style, palette and
+identity all transfer image-to-image.
+
+The consequence is counter-intuitive and useful: **generate the character and
+the terrain in the same image**. Assets generated separately carry no shared
+frame of reference and prompt wording cannot create one, which is why an
+independently generated hero came out 6.1 blocks tall against independently
+generated tiles. Generated together they agree by construction.
+
+Full findings, measurements and the working pipeline are in
+[`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md); the raw evidence
+is in `assets/concepts/tests/`. Nothing has been wired into the game yet — the
+levels still use the generated placeholder tiles.
 
 ## Roadmap
 
