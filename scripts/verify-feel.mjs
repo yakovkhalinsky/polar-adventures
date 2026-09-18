@@ -6,7 +6,7 @@
  * criterion — "it boots" says nothing about whether the jump is 3.5 hero-heights.
  *
  * Every number here is in game pixels at the RESCALED size: 960x540 internal,
- * 70x67 collision tiles, a 95x124 hero. The design targets are unchanged — the
+ * 70x66 collision tiles, a 95x124 hero. The design targets are unchanged — the
  * jump is still 3.5 hero-heights and the run still 5 hero-heights per second.
  *
  * Phaser steps Arcade physics at a fixed 60Hz by default, so these numbers are
@@ -142,8 +142,12 @@ try {
   };
 
   const baseline = await page.evaluate(() => {
-    const p = window.game.scene.getScene('Level').player;
-    return { x: p.x, y: p.y, groundTop: 20 * 67 };
+    const scene = window.game.scene.getScene('Level');
+    const p = scene.player;
+    // Read the tile height off the built map rather than writing 67 (or 66)
+    // here: the level's world geometry is what the jump is measured against,
+    // and a literal in this file drifts the moment the grid changes.
+    return { x: p.x, y: p.y, groundTop: 20 * scene.level.map.tileHeight };
   });
 
   // ---- 1. standing stability -------------------------------------------
@@ -263,11 +267,12 @@ try {
   ]);
 
   // ---- 7. surface detection ---------------------------------------------
-  // Sample inside row 13 (the ground surface, y 416-448). x=600 is inside the
-  // ice patch, x=80 is the rock at spawn.
+  // Sample inside the ground row the level puts at row 20 — just below its top
+  // edge, so the probe is unambiguously inside the tile. x=1500 is inside the
+  // ice patch (columns 16-27), x=80 is the rock at spawn.
   const surfaces = await page.evaluate(() => {
     const s = window.game.scene.getScene('Level');
-    const y = 20 * 67 + 4;
+    const y = 20 * s.level.map.tileHeight + 4;
     return { ice: s.level.surfaceAt(1500, y), rock: s.level.surfaceAt(80, y) };
   });
   results.push([

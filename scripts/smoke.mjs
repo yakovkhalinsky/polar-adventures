@@ -117,95 +117,123 @@ try {
     // by index, so a tile omitted from it has all four flags false and the hero
     // falls through — which makes the surface undetectable, not merely
     // non-solid. Asserting the flags is what catches that.
+    const counts = {};
     let iceTiles = 0;
     let iceCollides = null;
     for (const row of scene.level.solidLayer.layer.data) {
       for (const tile of row) {
-        if (tile && tile.index === 3) {
+        if (!tile || tile.index === -1) continue;
+        counts[tile.index] = (counts[tile.index] || 0) + 1;
+        if (tile.index === 3) {
           iceTiles++;
           if (iceCollides === null) iceCollides = tile.canCollide;
         }
       }
     }
 
+    // ---- autotiling ------------------------------------------------------
+    // The rule buildLevel applies: a solid cell with a solid cell above it is
+    // buried, and buried solid cells use the plain-fill tile. Worth asserting
+    // directly rather than trusting the picture — if the pass stopped running,
+    // every ground row would grow a snow cap and nothing would error.
+    const tileAt = (x, y) => {
+      const t = scene.level.solidLayer.getTileAt(x, y, true);
+      return t && t.index !== -1 ? t.index : null;
+    };
+    const autotile = {
+      groundSurface: tileAt(5, 20),
+      groundBuried: tileAt(5, 21),
+      iceSurface: tileAt(20, 20),
+      plateauTop: tileAt(60, 11),
+      plateauBuried: tileAt(60, 12),
+      counts,
+    };
+
     // ---- hero sprite structure ------------------------------------------
-    // Read the generated texture back, so these assert what was DRAWN rather
-    // than what the code intended. The two palette values are duplicated from
-    // src/art/placeholders.ts deliberately: silently recolouring the outline or
-    // the muzzle should fail here instead of passing unnoticed.
+    // Read the loaded PNG back, so these assert what was SHIPPED rather than
+    // what the code intended. The art is sliced from the concept sheet by
+    // scripts/slice-art.mjs; what this file checks is the contract between that
+    // PNG and the physics that was built against it.
+    //
+    // The placeholder-era version of this block asserted an exact palette and a
+    // 1px inset, because the art was drawn as rects from a known colour list.
+    // None of that survives contact with a 24-colour JPEG slice, and it would
+    // not be worth asserting if it did — what matters is that the numbers the
+    // rest of the game depends on still hold.
     const heroSprite = (() => {
-      const src = game.textures.get('ph-hero').getSourceImage();
+      const src = game.textures.get('hero').getSourceImage();
       const c = document.createElement('canvas');
       c.width = src.width;
       c.height = src.height;
       const hctx = c.getContext('2d');
       hctx.drawImage(src, 0, 0);
       const d = hctx.getImageData(0, 0, src.width, src.height).data;
-      const at = (x, y) =>
-        x < 0 || y < 0 || x >= src.width || y >= src.height
-          ? null
-          : [
-              d[(y * src.width + x) * 4],
-              d[(y * src.width + x) * 4 + 1],
-              d[(y * src.width + x) * 4 + 2],
-              d[(y * src.width + x) * 4 + 3],
-            ];
-      const is = (a, rgb) => !!a && a[0] === rgb[0] && a[1] === rgb[1] && a[2] === rgb[2];
-      const OPAQUE = (a) => !!a && a[3] >= 8;
+      const at = (x, y) => {
+        const i = (y * src.width + x) * 4;
+        return [d[i], d[i + 1], d[i + 2], d[i + 3]];
+      };
 
-      const OUTLINE = [0x1b, 0x24, 0x30];
-      const MUZZLE = [0x6e, 0x7a, 0x8b];
+      let opaque = 0;
+      let sumX = 0;
+      let sumY = 0;
+      let x0 = Infinity;
+      let y0 = Infinity;
+      let x1 = -1;
+      let y1 = -1;
+      let darkPx = 0;
+      // The head band. Measured off the shipped art: the bear's head and its
+      // dark features both live in the upper half.
+      const HEAD_BAND = [5, 60];
+      let headDarkPx = 0;
+      let headDarkSumX = 0;
 
-      let outlinePx = 0;
-      let edgeArtPx = 0;
-      let eyeN = 0;
-      let eyeSum = 0;
-      let mucN = 0;
-      let mucSum = 0;
       for (let y = 0; y < src.height; y++) {
         for (let x = 0; x < src.width; x++) {
-          const a = at(x, y);
-          const onRing =
-            x === 0 || y === 0 || x === src.width - 1 || y === src.height - 1;
-          const isOutline = is(a, OUTLINE);
+          const [r, g, b, a] = at(x, y);
+          if (a < 8) continue;
+          opaque++;
+          sumX += x;
+          sumY += y;
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
 
-          if (isOutline) {
-            outlinePx++;
-          } else if (OPAQUE(a) && onRing) {
-            // Non-outline art reaching the outermost ring means there was no
-            // room to draw the rim outside it, so the silhouette is clipped
-            // there. The rim itself may sit on the ring — that is it working.
-            edgeArtPx++;
-          }
-
-          // Face band only: the head box above the scarf, which starts at y47.
-          // The eye and nose share the outline's colour, so this range is what
-          // separates them from the rim itself.
-          // NOTE: no `continue` above — an early exit here silently zeroed the
-          // eye count, because every outline-coloured pixel is also a candidate
-          // for the eye/nose.
-          if (x >= 18 && x <= 76 && y >= 8 && y <= 44) {
-            if (isOutline) {
-              eyeN++;
-              eyeSum += x;
-            }
-            if (is(a, MUZZLE)) {
-              mucN++;
-              mucSum += x;
+          if (0.299 * r + 0.587 * g + 0.114 * b < 80) {
+            darkPx++;
+            if (y >= HEAD_BAND[0] && y <= HEAD_BAND[1]) {
+              headDarkPx++;
+              headDarkSumX += x;
             }
           }
         }
       }
+
+      let bottomRowPx = 0;
+      for (let x = 0; x < src.width; x++) {
+        if (at(x, src.height - 1)[3] >= 8) bottomRowPx++;
+      }
+
       return {
-        outlinePx,
-        edgeArtPx,
-        eyeN,
-        muzzleN: mucN,
-        eyeX: eyeN ? Number((eyeSum / eyeN).toFixed(1)) : null,
-        muzzleX: mucN ? Number((mucSum / mucN).toFixed(1)) : null,
-        headCentreX: 47, // the head spans x18..76 inclusive
+        width: src.width,
+        height: src.height,
+        opaque,
+        bbox: [x0, y0, x1, y1],
+        bboxW: x1 - x0 + 1,
+        bboxH: y1 - y0 + 1,
+        bottomRowPx,
+        darkPx,
+        headDarkPx,
+        headDarkX: headDarkPx
+          ? Number((headDarkSumX / headDarkPx).toFixed(1))
+          : null,
+        centreX: src.width / 2,
       };
     })();
+
+    const tiles = game.textures.get('tiles');
+    const tilesSrc = tiles.getSourceImage();
+    const tileFrame = tiles.getFrameNames();
 
     return {
       renderer: game.renderer.type === 2 ? 'WebGL' : 'Canvas',
@@ -227,9 +255,13 @@ try {
       oneWayStretched,
       iceTiles,
       iceCollides,
+      autotile,
       heroSprite,
-      tilesFrames: game.textures.get('ph-tiles').getFrameNames().length,
-      heroFrames: game.textures.get('ph-hero').getFrameNames().length,
+      tilesTexture: [tilesSrc.width, tilesSrc.height],
+      tilesFrames: tileFrame.length,
+      tilesFrame0: tileFrame.length
+        ? [tiles.get(tileFrame[0]).width, tiles.get(tileFrame[0]).height]
+        : null,
     };
   });
 
@@ -245,25 +277,68 @@ try {
     ['one-way runs collapsed into stretched bodies', report.oneWayStretched >= 1],
     ['level contains ice tiles', report.iceTiles > 0],
     ['ice tiles collide (index 3 is in the collision set)', report.iceCollides === true],
-    // The fur highlight is #F2F5F8 against snow at #EAF2F8; without the rim the
-    // head and legs disappear into a snow tile.
-    ['hero sprite is outlined', report.heroSprite.outlinePx >= 250],
-    // The outline is drawn OUTSIDE the art, so art touching the outermost ring
-    // clips it and the silhouette reads as broken.
-    ['hero art is inset (outline is not clipped)', report.heroSprite.edgeArtPx === 0],
-    // The hero faces right and setFlipX mirrors the whole sprite, so facial
-    // features on opposite sides would be wrong in BOTH orientations.
+    // The autotile pass. The buried rows are most of the map, and getting the
+    // collision set wrong there drops the hero through the floor while the
+    // surface row above still looks and behaves perfectly — so assert both
+    // halves: the buried cell is the interior index AND it collides.
     [
-      'hero face is not mirrored (muzzle and eye on the same side)',
-      report.heroSprite.eyeN > 0 &&
-        report.heroSprite.muzzleN > 0 &&
-        report.heroSprite.eyeX > report.heroSprite.headCentreX &&
-        report.heroSprite.muzzleX > report.heroSprite.headCentreX,
+      'ground: snow cap on the top row, fill below',
+      report.autotile.groundSurface === 1 && report.autotile.groundBuried === 0,
     ],
-    // A createCanvas texture has one base frame unless frames are added. The
-    // one-way platform sprites index this texture by tile, and without frames
-    // Phaser silently falls back to the whole 128x32 strip.
+    [
+      'ice patch has no snow cap where the ground beside it does',
+      report.autotile.iceSurface === 3 && report.autotile.groundSurface === 1,
+    ],
+    [
+      'raised plateau is also capped only at its top',
+      report.autotile.plateauTop === 1 && report.autotile.plateauBuried === 0,
+    ],
+    [
+      'buried fill is the bulk of the map and collides',
+      report.autotile.counts[0] > report.autotile.counts[1] * 2 &&
+        report.iceCollides === true,
+    ],
+    // The hero's alpha box has to reach the sprite's LAST row, because
+    // Player.setOffset(17, 8) pins the body's bottom there. If the art floats,
+    // the hero visibly hovers above the ground it is standing on.
+    [
+      'hero art is planted on the last row',
+      report.heroSprite.bottomRowPx >= 10 &&
+        report.heroSprite.bbox[3] === report.heroSprite.height - 1,
+    ],
+    // 95x124 is not cosmetic: HERO_H is the unit every movement constant is
+    // expressed in, and the hitbox offset is derived from this canvas.
+    [
+      'hero texture is 95x124 at the art\'s native scale',
+      report.heroSprite.width === 95 && report.heroSprite.height === 124,
+    ],
+    // The bear's fur is a warm cream and the outline is a hard navy rim. That
+    // rim is what keeps the hero readable against a snow tile; without it the
+    // silhouette washes out. (The placeholder's green scarf used to do this
+    // job — see the Art section of the README.)
+    ['hero sprite carries a dark rim', report.heroSprite.darkPx >= 300],
+    // The hero faces right and setFlipX mirrors the whole sprite, so facial
+    // features on the wrong side would be wrong in BOTH orientations.
+    [
+      'hero faces right (head features right of centre)',
+      report.heroSprite.headDarkPx > 50 &&
+        report.heroSprite.headDarkX > report.heroSprite.centreX,
+    ],
+    // A spritesheet registers one frame per cell, and the one-way ledge indexes
+    // this texture by frame. Without frames Phaser logs "has no frame" and
+    // silently draws the whole strip.
     ['tiles texture exposes one frame per tile', report.tilesFrames === 4],
+    [
+      'tiles frames are one collision tile each',
+      report.tilesFrame0?.[0] === 70 && report.tilesFrame0?.[1] === 66,
+    ],
+    // The tileset samples UVs by dividing the image into tile-sized cells, and
+    // it WARNS rather than throws if the image is not an exact multiple — a
+    // 281px-wide strip would sample shifted tiles with the suite still green.
+    [
+      'tiles strip is exactly 4 cells wide',
+      report.tilesTexture[0] === 280 && report.tilesTexture[1] === 66,
+    ],
     ['no missing-frame warnings', !consoleLines.some((l) => l.includes('has no frame'))],
     ['no runtime errors', errors.length === 0],
   ];

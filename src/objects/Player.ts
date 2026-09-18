@@ -46,8 +46,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     // standing on the tile rather than floating above it.
     this.arcade.setSize(61, 116);
     // Top starts 8px down, clearing the ears; the bottom lands on the sprite's
-    // last row, which the outline pass paints — so the feet read as planted on
-    // the ground rather than hovering a pixel above it.
+    // last row, which is where the sliced art puts the paws — so the feet read
+    // as planted on the ground rather than hovering a pixel above it.
+    //
+    // That makes the ART responsible for the offset: slice-art.mjs shifts the
+    // bear down so its paws sit on the last row, and smoke.mjs asserts it. Art
+    // that floated a couple of rows up would leave the hero visibly hovering.
     this.arcade.setOffset(17, 8);
 
     this.arcade.setCollideWorldBounds(true);

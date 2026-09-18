@@ -4,7 +4,7 @@ A 16-bit arctic platformer. Phaser 4 · TypeScript · Vite.
 
 ### ▶ [Play the current build](https://yakov.khalinsky.com/polar-adventures/)
 
-![The hero standing at the edge of a pit, with a one-way plank platform to the right](docs/screenshot.png)
+![The hero standing at the edge of a pit, with a one-way ledge platform to the right](docs/screenshot.png)
 
 ## Status: movement prototype
 
@@ -90,13 +90,19 @@ drop in at its native size instead of being crushed into a sprite slot.
 | | size |
 |---|---|
 | screen | 960 × 540 — exactly 2× at 1080p |
-| collision tile | 70 × 67 — a 2×3 group of drawn bricks, near square |
+| collision tile | 70 × 66 — exactly a 2×3 group of the art's bricks |
+| brick | 35 × 22 — the unit the concept art is actually drawn on |
 | hero | 95 × 124, hitbox 61 × 116 |
 | jump | 434px = 3.5 hero-heights |
 
+The brick is the honest unit: it is what the art has, and the collision tile is
+a whole number of them in both axes. An earlier 70 × 67 was a 2×3 group of
+35 × 22.33 — near enough to look right and wrong enough to resample every brick
+row. That is why the grid is 66 tall and not square.
+
 The design targets are expressed in **hero heights**, not tiles. Those used to be
 the same number — the hero was exactly one tile — so nothing ever forced a
-choice between them. After the rescale the hero is 1.85 tiles, and a "3.5 tile
+choice between them. After the rescale the hero is 1.9 tiles, and a "3.5 tile
 jump" would have been 0.6 hero-heights: the hero could barely hop over its own
 feet. `movement.ts` now says `HERO_H` out loud.
 
@@ -123,9 +129,21 @@ without a display, driving the real game in headless Chromium:
 
 ```bash
 npm run typecheck   # tsc --noEmit
-npm run smoke       # 17 checks — boots the game, asserts the runtime state
+npm run smoke       # 24 checks — boots the game, asserts the runtime state
 npm run verify      # 10 checks — measures the movement claims above
 ```
+
+Two more are not checks but keep the repo honest, and both need a binary on
+`PATH` rather than a package:
+
+```bash
+npm run slice-art     # re-slices public/art/ from the concept sheet (needs ImageMagick)
+npm run screenshots   # rewrites docs/*.png from the running game (needs Chromium)
+```
+
+`slice-art` is byte-reproducible, so it is only ever needed when the art
+changes. The PNGs it produces are committed, which is what keeps `magick` out of
+the build and out of CI.
 
 `verify` is the interesting one. It records per-frame state from inside the
 scene's own update loop, then drives real key presses and checks the results
@@ -162,9 +180,10 @@ src/
   input/     the single seam between keyboard and game — nothing else reads keys
   level/     the ASCII level source, and the only file that knows that format
   objects/   the hero; tick() is physics only, so animation stays additive
-  art/       generated placeholder textures
-  scenes/    Boot (builds textures) and Level
-scripts/     the two headless verification harnesses
+  art/       the texture keys and what each tile index means
+  scenes/    Boot (loads the art) and Level
+scripts/     the two headless verification harnesses, the art slicer, screenshots
+public/art/  the sliced PNGs the game loads
 assets/concepts/   concept art and ASSET-LOG.md
 ```
 
@@ -178,53 +197,77 @@ code.
 
 ## Art
 
-Everything on screen is generated at boot as placeholder canvas textures, drawn
-from the palette locked in [`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md).
-The concept art in that folder is art direction, not shipped assets.
+Everything on screen is real art now, sliced out of one FLUX concept sheet by
+[`scripts/slice-art.mjs`](scripts/slice-art.mjs) into two PNGs in `public/art/`.
+The sheet is 1536×1024 of illustration at six source pixels per art pixel; the
+slicer reduces it to 1:1, keys it, and composes it into the shapes the game asks
+for. Nothing is resampled at runtime — the hero drops in at exactly its
+`HERO_H` and the bricks at exactly 35×22.
 
-The **green scarf is not decoration.** It exists to solve white-on-white
-silhouette readability when a cream-furred bear stands on snow, and it is in the
-placeholder for exactly the same reason it is in the concept art.
+The concept art in `assets/concepts/` is art direction and provenance. The
+committed PNGs are the shipped assets, and the slicer is byte-reproducible, so a
+diff in `public/art/` always means the art changed.
 
-The scarf cannot carry that job alone, though. The fur highlight is `#F2F5F8`
-against snow at `#EAF2F8` — a few percent apart — so the hero is also drawn with
-a 1px near-black rim. That rim is applied as a pass over the finished pixels
-rather than hand-drawn, because an outline belongs to the *silhouette* and not
-to any one shape; drawing it as rects would mean re-deriving every edge by hand
-and keeping the two in sync forever. It also means the art has to stay 1px
-inside the texture, or the rim gets clipped.
+**The hero has no green scarf, and that is a correction rather than a loss.**
+The scarf was introduced for the *placeholder*, whose fur highlight was `#F2F5F8`
+against snow at `#EAF2F8` — a few percent apart, so a cream bear vanished into a
+snow tile. The real art does not have that problem: the fur is a warm cream
+against white snow with a hard navy outline around the whole silhouette, and the
+sliced bear composited over a wall of real snow tiles reads cleanly. The scarf
+solved a problem the real art never had, and the sheet that pairs the hero with
+the terrain in a single generation — the one whose scale the game was rescaled
+against — simply doesn't have one.
 
-Three smoke checks guard the sprite, reading the generated texture back so they
-assert what was *drawn* rather than what the code intended: that the rim exists,
-that no art touches the texture edge, and that **the face is not mirrored** —
-the muzzle and the eye must stay on the same side of the head. That last one
-guards a real bug: the snout was drawn on the opposite side from the eye, which
-is wrong in *both* orientations because `setFlipX` mirrors the whole sprite.
+Two things about the keying are worth knowing, because both are invisible in the
+result and both cost real time to find:
 
-Worth recording, since it shaped the pipeline: FLUX produces good art direction
+- **The sheet's grey backdrop is nearly the same colour as the bear's shaded
+  fur** (`rgb(165,164,159)` against `rgb(174,177,170)` — nine levels). Any colour
+  tolerance wide enough to key the backdrop punches through the bear's hip and
+  hind leg. So the slicer does not threshold: it floods the backdrop from the
+  image border, using the closed navy outline as a wall.
+- **The drop shadow needs removing on its own terms.** It is cool mid-tones
+  (`lum ≈ 132`, `R−B < 0`) where the fur is warm and the outline is far darker,
+  so it can be identified — but only after the flood, and only by spreading from
+  the transparent edge, because it is also the bridge the flood uses to reach the
+  bear's underside. A last cut at the lowest outline row removes the flat smear
+  under the paws that survives both.
+
+Four smoke checks guard the shipped sprite, reading the loaded PNG back so they
+assert what was *shipped* rather than what the code intended: that the texture is
+95×124 at native scale, that the art is planted on the last row (the hitbox is
+pinned to it), that the rim is dark enough to hold the silhouette against snow,
+and that **the face is not mirrored** — the head's dark features must stay right
+of centre, because `setFlipX` mirrors the whole sprite and a left-facing slice
+would be wrong in *both* directions.
+
+The tile roles are measured rather than chosen. Rows 1–2 of the sheet's grid
+carry 29–30% snow pixels and rows 3–6 carry none, and the slicer fails if that
+inverts — otherwise a future sheet could swap the snow cap for the fill brick
+and every ground row would grow a snow cap with nothing erroring. It also fails
+if the ice brick and the fill brick end up too close in colour after quantising,
+because that is the game's only mechanic becoming invisible.
+
+Worth recording, since it shaped all of this: FLUX produces good art direction
 but **nothing that a prompt can specify numerically**. Asked for a magenta key
 colour it returns gray; asked for a 24×32 sprite it returns full illustration
 detail; asked for tiles that fill their cell it returns rounded rectangles on a
 backdrop. What it does honour is anything it can see — style, palette and
-identity all transfer image-to-image.
+identity all transfer image-to-image — and what it will not do is agree on a
+scale across separate generations, which is why the hero and the terrain have to
+come out of the same image. The numbers the game needs are then imposed by the
+slicer, not requested from the model.
 
-The consequence is counter-intuitive and useful: **generate the character and
-the terrain in the same image**. Assets generated separately carry no shared
-frame of reference and prompt wording cannot create one, which is why an
-independently generated hero came out 6.1 blocks tall against independently
-generated tiles. Generated together they agree by construction.
-
-Full findings, measurements and the working pipeline are in
-[`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md); the raw evidence
-is in `assets/concepts/tests/`. Nothing has been wired into the game yet — the
-levels still use the generated placeholder tiles.
+Full findings, measurements and the pipeline as it was actually built are in
+[`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md), with the raw
+evidence in `assets/concepts/tests/`.
 
 ## Roadmap
 
-- **Real art** — slice the tilesets, add `load.atlas()` in `BootScene`, delete the `make*` calls
-- **Animation** — idle/run/jump, which `Player.tick()`'s physics/presentation split was built for
+- ~~**Real art**~~ — done: sliced from the concept sheet into `public/art/`, loaded in `BootScene`, with the autotile pass deriving snow caps from the level
+- **Animation** — idle/run/jump, which `Player.tick()`'s physics/presentation split was built for. One generation per pose: a strip comes back with near-identical stances
 - **More levels** — there is currently exactly one, and it is a feel-test rig
-- **Breakable ice** — the surface system is in place; crumbling needs tile mutation, per-tile timers and a way to restore state on respawn
+- **Breakable ice** — the surface system is in place; crumbling needs tile mutation, per-tile timers and a way to restore state on respawn. The sheet's grid has three spare brick variants the slicer does not use, which is where its art would come from
 
 ## License
 

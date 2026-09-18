@@ -18,17 +18,28 @@ export const GAME_HEIGHT = 540;
 /**
  * The collision grid, in game pixels. All level geometry is authored on it.
  *
- * These are NOT the same as the art's tile: one drawn ice brick is 35x22, which
- * is neither square nor a useful collision unit. A collision tile is a 2x3
- * GROUP of bricks — 70x67, near square — which is what makes the hero come out
- * a sane 1.85 tiles tall instead of 5.55.
+ * These are NOT the same as the art's tile: one drawn brick is 35x22, which is
+ * neither square nor a useful collision unit. A collision tile is a 2x3 GROUP of
+ * bricks — 70x66, near square — which is what makes the hero come out a sane
+ * 1.9 tiles tall instead of 5.6.
+ *
+ * The grouping is baked into the tileset by scripts/slice-art.mjs: each cell of
+ * public/art/tiles.png is already a composed 2x3 block of bricks, so the tilemap
+ * can go on addressing one index per cell.
  *
  * Width and height differ, and that is fine: `buildLevel` and Phaser's tilemap
  * both take them separately, and the level is authored as rows and columns
  * either way. Only physics maths has to care.
+ *
+ * Both are exact multiples of the brick, and that is the point — a brick is 35
+ * wide and 22 tall, so 70x66 is 2x3 of them with nothing left over. An earlier
+ * 70x67 split the difference at 22.33px per brick row, which resamples the art.
+ * TILE_H is mirrored as `tileHeight` in src/level/levels.ts, which is what
+ * buildLevel actually reads; change both or the tileset and the tile grid
+ * disagree about how tall a tile is.
  */
 export const TILE_W = 70;
-export const TILE_H = 67;
+export const TILE_H = 66;
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -83,6 +94,13 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       // Re-check this if MAX_FALL_SPEED, JUMP_VELOCITY or GRAVITY_FALL_RISE go
       // up — and note the failure is intermittent, not total: it depends on the
       // sub-pixel phase at the contact frame, so it looks like flakiness.
+      //
+      // THIS DOES NOT COVER THE ONE-WAY PLATFORMS. They are bodies, not tiles,
+      // and body-vs-body separation in `GetOverlapY` uses `OVERLAP_BIAS` (4) to
+      // widen a window that already scales with the frame's movement — so the
+      // platform's own thickness does not enter into it, and a one-brick ledge
+      // is caught exactly as a full-cell one is. Raising MAX_FALL_SPEED past
+      // what a 4px bias can absorb is a separate calculation from this one.
       tileBias: 64,
 
       debug: false, // also toggleable at runtime with F1

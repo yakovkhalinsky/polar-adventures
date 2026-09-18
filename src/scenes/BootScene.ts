@@ -1,28 +1,34 @@
 import Phaser from 'phaser';
-import {
-  makePlaceholderHero,
-  makePlaceholderTiles,
-} from '../art/placeholders';
-import { TILE_H } from '../config/game';
+import { TEX } from '../art/tileset';
+import { TILE_H, TILE_W } from '../config/game';
 import { DERIVED, MOVE } from '../config/movement';
 
 /**
- * Generates the placeholder textures, prints the tuning readout, then hands
- * off to the level.
+ * Loads the art, prints the tuning readout, then hands off to the level.
  *
- * Everything milestone 1 needs is generated rather than loaded. Swapping in
- * the sliced concept art later means adding `this.load.atlas(...)` here and
- * deleting the two make* calls.
+ * The art is sliced out of the concept sheet by scripts/slice-art.mjs and lives
+ * in public/art/. Those URLs are RELATIVE — no leading slash — because the game
+ * deploys to a GitHub Pages subpath and `base` is './' (see vite.config.ts). An
+ * absolute '/art/hero.png' works in dev and 404s in production, which is the
+ * kind of failure that only shows up after a deploy.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
   }
 
-  create(): void {
-    makePlaceholderTiles(this);
-    makePlaceholderHero(this);
+  preload(): void {
+    this.load.image(TEX.hero, 'art/hero.png');
+    // frameWidth/frameHeight rather than a plain image: the tilemap derives its
+    // UVs from the texture, but the one-way ledge is a sprite indexing a single
+    // cell by frame index.
+    this.load.spritesheet(TEX.tiles, 'art/tiles.png', {
+      frameWidth: TILE_W,
+      frameHeight: TILE_H,
+    });
+  }
 
+  create(): void {
     // The tuning readout. If these numbers don't match what you intended, the
     // constants and the code have drifted apart.
     //

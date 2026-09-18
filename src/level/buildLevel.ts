@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { TEX, TILE_INDEX } from '../art/placeholders';
+import { TEX, TILE_INDEX } from '../art/tileset';
 import type { Surface } from '../config/movement';
 import type { LevelSource } from './levels';
 
@@ -64,6 +64,32 @@ export function buildLevel(
   const foundSpawn = spawnTile as { x: number; y: number } | null;
   if (!foundSpawn) throw new Error(`Level "${src.name}" has no 'P' spawn`);
 
+  // ---- autotile -----------------------------------------------------------
+  // '#' means "solid", but a solid cell has two appearances: snow-capped where
+  // the sky is above it, plain fill where it is buried. Deriving that from the
+  // rows rather than asking the level author to write two characters keeps the
+  // level readable and keeps the rule in the one file that knows the format.
+  //
+  // Read from `src.rows`, NOT from `data`: by the time this runs `data` holds
+  // the already-rewritten indices, and testing those would make the pass
+  // depend on the order it walks the grid.
+  //
+  // Only SURFACE is remapped. Ice has no buried variant because it is authored
+  // as a surface — the level puts '~' on the top row and rock underneath — and
+  // a buried ice cell has to keep index ICE anyway, since that index is what
+  // `surfaceAt` reads to decide the hero is on something slippery. Its art and
+  // its physics are the same decision.
+  const solidChar = (ch: string) => ch === '#' || ch === '~';
+  const covered = (x: number, y: number) => y > 0 && solidChar(src.rows[y - 1][x]);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[y][x] === TILE_INDEX.SURFACE && covered(x, y)) {
+        data[y][x] = TILE_INDEX.INTERIOR;
+      }
+    }
+  }
+
   // ---- tilemap -----------------------------------------------------------
   // The creator (not the factory) accepts a raw 2-D array of tile indices.
   const map = scene.make.tilemap({
@@ -73,16 +99,16 @@ export function buildLevel(
   });
 
   // The map is ARRAY_2D, not TILED_JSON, so there is no gid offset to match:
-  // tile index 0 is the first 32x32 cell of the texture, index 1 the second,
-  // and so on. (Tiled maps are 1-based, which is why Tiled tutorials use
-  // setCollision([1,2,3]).)
+  // tile index 0 is the first cell of the texture, index 1 the second, and so
+  // on — no 1-based offset the way Tiled maps have. (Tiled maps are 1-based,
+  // which is why Tiled tutorials use setCollision([1,2,3]).)
   const tileset = map.addTilesetImage(
-    'placeholder',
+    'tiles',
     TEX.tiles,
     src.tileWidth,
     src.tileHeight,
   );
-  if (!tileset) throw new Error('placeholder tileset failed to attach');
+  if (!tileset) throw new Error('tileset failed to attach');
 
   const created = map.createLayer(0, tileset);
   if (!created) throw new Error('createLayer(0) returned null');
@@ -101,12 +127,21 @@ export function buildLevel(
   // Solids collide on all four faces. Applied before anything else, because
   // setCollision sets all four flags and would clobber a one-way override.
   //
-  // ICE MUST BE LISTED HERE. setCollision is a whitelist by index, not "make
-  // everything solid" — a tile index left out has all four collide flags false,
-  // so the hero falls straight through it and `blocked.down` never becomes true
-  // there, which silently makes the surface undetectable rather than merely
-  // non-solid.
-  layer.setCollision([TILE_INDEX.SOLID, TILE_INDEX.ICE]);
+  // EVERY SOLID INDEX MUST BE LISTED. setCollision is a whitelist by index, not
+  // "make everything solid" — a tile index left out has all four collide flags
+  // false, so the hero falls straight through it and `blocked.down` never
+  // becomes true there, which silently makes the surface undetectable rather
+  // than merely non-solid.
+  //
+  // INTERIOR is the dangerous one to forget. It used to be that the bulk of the
+  // ground was SURFACE; now the autotile pass above turns every buried cell into
+  // INTERIOR, so leaving it out drops the hero through most of the floor while
+  // the top row still looks solid.
+  layer.setCollision([
+    TILE_INDEX.INTERIOR,
+    TILE_INDEX.SURFACE,
+    TILE_INDEX.ICE,
+  ]);
 
   // ---- one-way platforms -------------------------------------------------
   // Deliberately kept OUT of the tilemap. Tile-level one-way does work, but it
@@ -126,19 +161,39 @@ export function buildLevel(
         runStart = x;
       } else if (!isOneWay && runStart !== -1) {
         // Collapse a horizontal run into ONE stretched body: fewer bodies, and
-        // no chance of catching on the seam between two adjacent planks.
+        // no chance of catching on the seam between two adjacent ledges.
         const len = x - runStart;
-        const plat = oneWayGroup.create(
+        const runWidth = len * src.tileWidth;
+
+        // A TileSprite, not a plain sprite with setDisplaySize. The ledge art
+        // is one brick row wide, so stretching it across a run would stretch
+        // the bricks with it — a 6-cell run would be laid in 210px bricks
+        // against the ground's 35px ones. A TileSprite repeats the cell at 1:1,
+        // which is also why it is the full cell height: with the texture's own
+        // height matching, it tiles horizontally only.
+        //
+        // The body stays full cell height with its top on the cell boundary, so
+        // the landing surface and the one-way idiom below are unchanged. The
+        // art occupies only the top brick row; the rest of the cell is
+        // transparent and, being one-way, is never touched anyway.
+        const plat = scene.add.tileSprite(
           (runStart + len / 2) * src.tileWidth,
           y * src.tileHeight + src.tileHeight / 2,
+          runWidth,
+          src.tileHeight,
           TEX.tiles,
           TILE_INDEX.ONEWAY,
         );
-
-        plat.setDisplaySize(len * src.tileWidth, src.tileHeight);
-        // A static body caches its size at creation, so it must be refreshed
-        // after a display-size change or it keeps the original 32x32.
-        plat.refreshBody();
+        // Adding to a StaticGroup enables a static body on the child, so this
+        // is what creates the body — do not also call physics.add.existing.
+        //
+        // No refreshBody() here, unlike the sprite this replaced. That call
+        // existed because the body was created at 70x66 and then the sprite was
+        // resized to the run's width. This TileSprite is CONSTRUCTED at its
+        // final size, so the body is already right. (It also has no
+        // refreshBody to call: that lives on the Arcade sprite components, not
+        // on every GameObject, and a TileSprite is not one.)
+        oneWayGroup.add(plat);
 
         // THE one-way idiom. GetOverlapY gates "land on top" on
         // (body.checkCollision.down && plat.checkCollision.up), and gates
@@ -183,7 +238,7 @@ export function buildLevel(
     // The BOTTOM-CENTRE of the spawn tile — i.e. where the hero's feet go, not
     // its middle. That distinction never mattered while the hero was exactly
     // one tile tall, so `(row + 0.5)` put the feet on the ground for free. With
-    // a 124px hero in a 67px tile it spawns buried, and tilemap separation
+    // a 124px hero in a 66px tile it spawns buried, and tilemap separation
     // pushes it the wrong way — through the floor — instead of out.
     spawn: new Phaser.Math.Vector2(
       (foundSpawn.x + 0.5) * src.tileWidth,

@@ -1,4 +1,4 @@
-import { TILE_INDEX } from '../art/placeholders';
+import { TILE_INDEX } from '../art/tileset';
 
 export type LevelSource = {
   name: string;
@@ -10,21 +10,29 @@ export type LevelSource = {
 
 /**
  * Milestone 1 level, rescaled to the assets' native pixel scale.
- * 64 x 24 tiles of 70x67 = 4480 x 1608 world pixels, about 36 x 13
+ * 64 x 24 tiles of 70x66 = 4480 x 1584 world pixels, about 36 x 13
  * hero-heights — close to the 48 x 16 the old 32px-tile level covered.
+ *
+ * A collision tile is a 2x3 group of the art's 35x22 bricks, which is why it is
+ * 70x66 and not square — see config/game.ts.
  *
  * Legend:
  *   .  empty          #  solid          =  one-way platform
  *   ~  ice            P  player spawn
  *
+ * '#' is the snow-capped appearance, and buildLevel derives which solid cells
+ * are actually buried and swaps those for the plain-fill tile. So a '#' with
+ * sky above it gets a snow cap and the rest do not, without the level having to
+ * say so — see the autotile pass in buildLevel.ts.
+ *
  * Height budget, from the constants in config/movement.ts. These are quoted in
- * COLLISION TILES (67px) because that is what the rows below are counted in,
+ * COLLISION TILES (66px) because that is what the rows below are counted in,
  * but the design targets are in HERO HEIGHTS (124px), since that is what the
  * hero actually is:
- *   jump apex  3.5 hero-heights = 6.5 tiles -> a 6-tile ledge is comfortable,
+ *   jump apex  3.5 hero-heights = 6.6 tiles -> a 6-tile ledge is comfortable,
  *                                              a 9-tile one is impossible
  *   min hop    1.2 hero-heights = 2.3 tiles -> the tap-to-hold range
- *   gap reach  6.6 tiles at full run, flat
+ *   gap reach  6.7 tiles at full run, flat
  *
  * Every feature below tests exactly one thing, and each is sized against those
  * numbers rather than against the old level's tile counts — a "3 tile ledge"
@@ -33,10 +41,10 @@ export type LevelSource = {
 export const LEVEL_01: LevelSource = {
   name: 'feel-test-01',
   tileWidth: 70,
-  tileHeight: 67,
+  tileHeight: 66,
   legend: {
     '.': -1, // -1 is how Phaser's Parse2DArray marks an empty cell
-    '#': TILE_INDEX.SOLID,
+    '#': TILE_INDEX.SURFACE,
     '~': TILE_INDEX.ICE,
     // One-way cells render and collide via the static platform group, NOT the
     // tilemap layer, so they are empty here. Drawing them in both places would

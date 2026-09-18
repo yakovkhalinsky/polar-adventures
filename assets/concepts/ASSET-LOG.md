@@ -128,3 +128,82 @@ All four steps are proven, not assumed:
 - **No true autotile semantics.** There is snow-cap and interior-fill, but no
   left/right edge caps and no 45-degree slopes.
 
+---
+
+# Round 3, 2026-09-18 — sliced, shipped
+
+Round 2 ended with "the pipeline works" and nothing in the game. This round
+wired it in: `scripts/slice-art.mjs` turns `07-asset-sheet-bear-and-tiles.jpg`
+into `public/art/hero.png` and `public/art/tiles.png`, and the game loads those
+instead of generating textures at boot.
+
+The round-1/2 numbers were right, which is why this was mostly mechanical: the
+hero's bbox really is 568×743 source px, which really is 95×124 at a 6px block,
+which is exactly `HERO_H`. The one brick really is ~213×136, which is 35×22. The
+rescale had been sized against this sheet all along.
+
+## Two corrections to round 2
+
+**1. "Key the backdrop by thresholding the flat gray" is not true for this
+sheet.** The backdrop is `rgb(165,164,159)`. The bear's shaded fur is
+`rgb(174,177,170)`. Nine levels apart. Every tolerance wide enough to key the
+backdrop eats the bear's hip and hind leg — measured, at T=15 through T=50, with
+the loss growing from "some of the flank" to "most of the lower body" — and
+narrowing it just leaves backdrop behind.
+
+The fix is to stop thresholding and use connectivity instead: flood the backdrop
+from the image border with the navy outline as a wall. The backdrop is one
+region touching every edge; the bear is inside a closed outline. Two details
+matter — the wall has to be dilated 1px, because at art scale the outline is not
+quite closed and a single gap lets the flood into the whole rear — and the drop
+shadow has to be removed afterwards rather than during, because the shadow
+(`lum ≈ 132`) is dark enough to act as a wall and is also the bridge the flood
+was using to reach the bear's underside. The shadow then goes in its own pass,
+spreading from the transparent edge through cool mid-tones (`R−B < 0`), which
+the warm fur (`R−B ≈ +4`) and the far darker outline (`lum ≈ 34`) both fail.
+What survives both passes is a flat smear under the paws, cut by defining the
+ground plane as the lowest row carrying a real outline pixel.
+
+**2. The green scarf is in the anchor, not in the sheet the game was sized
+against.** `07` is the only sheet with the hero and the terrain in one
+generation, and its bear has no scarf. Given the above, that is fine: the scarf
+existed to fix `#F2F5F8`-on-`#EAF2F8` in the placeholder, and the real fur is a
+warm cream with a hard navy rim around the silhouette. Composited over a wall of
+real snow tiles it reads cleanly. The signature accent is gone; the reason for
+it is gone too.
+
+## What the slicer does, in order
+
+1. **Decimate** by taking the MEDIAN colour of each fractional 6px block. Median
+   rather than average or nearest: the source is a JPEG at six times the art
+   resolution and every block edge rings, which an average spreads and nearest
+   sampling keeps.
+2. **Key** as above, on a crop that hugs the source bbox. A much wider crop
+   leaves the shadow stranded and the flood without the margin to reach it.
+3. **Cut at the ground plane**, then shift so the paws land on the sprite's last
+   row — the row `Player.setOffset` pins the hitbox to.
+4. **Compose the tileset as collision-sized cells.** This is the part round 2
+   did not have. A collision tile is a 2×3 group of bricks, and one tile index
+   can only have one appearance, so the composition has to be baked: the cells
+   are `INTERIOR` (fill), `SURFACE` (snow cap over fill), `ICE` (no snow cap) and
+   the one-way ledge (a single brick row, transparent below). Without the split,
+   every ground row grows a snow cap.
+5. **Quantise** to 28–32 colours, after keying. A decimated cell arrives with
+   400–900 distinct colours; real pixel art has under 20.
+6. **Assert what was written**: the hero's feet on the last row, the strip
+   exactly 4 cells, the surface brick snowy and the fill brick not, and the ice
+   brick still measurably apart from the fill brick after quantising. Each of
+   those is a way for the assets and the game to disagree with nothing erroring.
+
+## Still open after this round
+
+- **Animation** — unchanged, and still one generation per pose.
+- **The hero:terrain ratio** — resolved by fiat rather than by art: the collision
+  tile is a 2×3 group of bricks, so the hero comes out 1.9 tiles tall instead of
+  5.6. The bricks are used at native scale; what changed is how many of them a
+  collision tile is.
+- **Autotile semantics** — partially resolved. The slicer produces snow-cap and
+  interior-fill, and `buildLevel` derives which cells get which from the level
+  rows, so a level author writes `#` and gets a cap only where the sky is above
+  it. Still no left/right edge caps and no slopes.
+

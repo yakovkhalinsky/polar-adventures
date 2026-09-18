@@ -4,7 +4,7 @@ import { LEVEL_01 } from '../level/levels';
 import { HERO_H } from '../config/movement';
 import { Controls } from '../input/controls';
 import { Player } from '../objects/Player';
-import { TEX } from '../art/placeholders';
+import { TEX } from '../art/tileset';
 
 export class LevelScene extends Phaser.Scene {
   private player!: Player;
@@ -45,12 +45,19 @@ export class LevelScene extends Phaser.Scene {
     // F1 toggles Arcade physics body outlines — the single most useful tool
     // for tuning feel. You will immediately see any hitbox that doesn't match
     // its art.
+    //
+    // The "next" state is read BEFORE creating the graphic, because
+    // `createDebugGraphic()` sets `drawDebug = true` as a side effect. Inverting
+    // after it (which the obvious one-liner does) means the first press creates
+    // the graphic and then immediately turns it back off: the overlay needs two
+    // presses the first time and looks broken.
     this.input.keyboard!.on('keydown-F1', () => {
       const world = this.physics.world;
+      const next = !world.drawDebug;
       // createDebugGraphic() makes a NEW Graphics object each call, so guard.
       if (!world.debugGraphic) world.createDebugGraphic();
-      world.drawDebug = !world.drawDebug;
-      if (!world.drawDebug) world.debugGraphic!.clear();
+      world.drawDebug = next;
+      if (!next) world.debugGraphic!.clear();
     });
   }
 
