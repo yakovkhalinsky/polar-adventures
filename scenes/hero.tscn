@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3]
+
+; The hero. A Node2D, not a CharacterBody2D — and that is the model, not an oversight.
+;
+; In a height field there is nothing to overlap: the level is a table of ground heights
+; and collision is a lookup, so a collision shape would be a shape that nothing consults.
+; Keeping one would leave two sources of truth about where the floor is, which is exactly
+; the class of bug the model exists to remove.
+;
+; THE ROOT SITS AT THE CHARACTER'S FEET. `HeightMover.place()` puts the node at the
+; projected feet position, so `position.y` *is* the depth sort key.
+;
+; `Sprite` is offset upward in script once the art's frame height is known, because the
+; frames are registered with the feet on the bottom row and the sprite node is centred.
+
+[ext_resource type="Script" path="res://src/objects/hero.gd" id="1_hero"]
+
+[node name="Hero" type="Node2D"]
+script = ExtResource("1_hero")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
