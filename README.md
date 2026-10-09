@@ -404,8 +404,21 @@ already.
   then-current game — is paused at that gate in ANIMATION-LOG.md.
 - **More levels** — there is exactly one, and it is a feel-test rig.
 - **Game systems** — no enemies, no collectibles, no goal, no respawn.
-- **Web export** — the preset and the renderer are in place, but nothing is
-  published and the Pages workflow still builds the Phaser tree.
+- **Ice** — the Phaser build's one mechanic is not ported at all. There is no
+  surface concept anywhere in the tree: `HeightField` holds heights and nothing
+  else, the legend has no surface field, and the movement constants have a single
+  ground set where rock and ice used to move together.
+- **One-way platforms** — the Phaser build had ledges; here `one_way` appears
+  only in `tools/probe_capabilities.gd`. Godot 4.7's
+  `CollisionShape2D.one_way_collision_direction` is the API for it.
+- **Web export** — done and live. CI installs Godot 4.7.2 and the export
+  templates, gates on the test suite and publishes the web export.
+
+## Continuing this work
+
+[`docs/MIGRATION.md`](docs/MIGRATION.md) carries the state of the port, what is
+left in order of size, and the export and CI traps that cost time — including
+the two bugs that shipped to the live site because nothing tests a packed build.
 
 ## License
 
