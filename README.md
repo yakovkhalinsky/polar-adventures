@@ -1,273 +1,411 @@
 # Polar Adventures
 
-A 16-bit arctic platformer. Phaser 4 · TypeScript · Vite.
+An isometric 16-bit arctic platformer. Godot 4.7.2 · GDScript.
 
-### ▶ [Play the current build](https://yakov.khalinsky.com/polar-adventures/)
-
-![The hero standing at the edge of a pit, with a one-way ledge platform to the right](docs/screenshot.png)
+**There is no published Godot build.** The Pages site at
+<https://yakov.khalinsky.com/polar-adventures/> still serves the retired Phaser
+build. The workflow has been switched to this one — it installs Godot 4.7.2 and
+the export templates, gates on the test suite, and publishes the web export —
+but it runs on pushes to `main` and this work is not merged, so nothing has been
+republished. The export itself is verified: it builds, and the result is the
+non-threaded variant, which is the one Pages can serve, since Pages cannot send
+the COOP/COEP headers a threaded build needs.
 
 ## Status: movement prototype
 
-Milestones 1–2. There is one hand-authored test level, no enemies, no
-collectibles and no goal. What exists is a hero that is genuinely good to
-control, and one mechanic — ice — that changes how it moves. The feel of both is
-*measured* rather than asserted.
+One hand-authored test level, no enemies, no collectibles and no goal. What
+exists is a bear that is good to control on an isometric height field: the
+movement model ported from the retired side-view build, the projection that
+reinterprets it, and a level format that produces collision *and* geometry from
+one description. The terrain is drawn as flat placeholder faces — there is no
+tile art yet. The feel of the movement is *measured* rather than asserted.
 
 > "It boots" says nothing about whether the jump is 3.5 hero-heights.
 
-| Controls | |
-|---|---|
-| Move | <kbd>←</kbd> <kbd>→</kbd> |
-| Jump | <kbd>↑</kbd> <kbd>Space</kbd> <kbd>Z</kbd> <kbd>X</kbd> |
-| Physics debug overlay | <kbd>F1</kbd> |
+![The isometric height-field level: a raised plateau with visible side faces, a pit beside it, and the bear mid-walk on the field](docs/screenshot.png)
 
-Hold jump to go higher, tap it to hop. Both are deliberate — see below.
+*The one level, captured from the running game. The plateau is 64px of ground
+and the dark area beside it is the pit; the bear is walking the lattice. The
+terrain is placeholder faces — flat fill with the grid drawn over it — so this
+shows the geometry and the projection working, not art.*
+
+## Controls
+
+| Action | Keys |
+|---|---|
+| Move | <kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>A</kbd> <kbd>D</kbd> <kbd>W</kbd> <kbd>S</kbd> |
+| Jump | <kbd>Space</kbd> <kbd>Z</kbd> <kbd>X</kbd> |
+
+Hold jump to go higher, tap it to hop. The keys are **screen** directions and
+the lattice axes are the screen **diagonals**, so a single key is a tie between
+two lattice axes and resolves by a fixed tie-break; holding two gives the
+genuine diagonal (`Hero.direction_from_screen()`). This is how isometric games
+driven by a D-pad have always behaved. There is a `debug_toggle` action bound
+to <kbd>F1</kbd>, but nothing reads it yet, so it does nothing.
 
 ## The jump is derived, not tuned
 
-`src/config/movement.ts` holds two design targets, and everything vertical is
-computed from them:
+`src/config/movement.gd` holds two design targets and derives every vertical
+constant from them:
 
 ```
-JUMP_HEIGHT_PX = 3.5 hero-heights     APEX_TIME_S = 0.40
+JUMP_HEIGHT_HEROES = 3.5        HERO_H = 64
+APEX_TIME_S        = 0.40       JUMP_HEIGHT_PX = 224
         ↓
-GRAVITY_RISE = 2h/t²   JUMP_VELOCITY = 2h/t
+GRAVITY_RISE   = 2h/t²  = 2800 px/s²    JUMP_VELOCITY = 2h/t = 1120 px/s
+GRAVITY_FALL   = RISE × 1.64            (the ratio IS the sense of weight)
 ```
 
-Nothing is hand-edited independently, so the arc cannot silently stop matching
-its stated apex. Feel is then layered on top: asymmetric gravity (fall is 1.64×
-rise — that ratio *is* the sense of weight), coyote time, a jump buffer, and
-variable height via a velocity **clamp** rather than a multiplier, because a
-clamp guarantees a minimum hop while a multiplier's result depends on when you
-happened to release.
+Nothing vertical is hand-edited independently, so the arc cannot silently stop
+matching its stated apex. The constants keep their meaning under a change to
+`HERO_H` because they are restated in hero-relative terms and each is asserted
+against what it *means* rather than against a px/s literal: max run is 5
+hero-heights/s (320 px/s), top speed takes 0.12s, turn acceleration is exactly
+2× ground, air acceleration is 58% of ground, air drag is zero (a jump commits
+you), and terminal fall is 16.25 hero-heights/s.
 
-One subtlety worth knowing: Phaser integrates with semi-implicit Euler at a
-fixed 60 Hz, so the closed-form 434px target lands at **415.9px** in the running
-game. The constants stay as readable design intent and the gap is documented and
-asserted, rather than the constant being fudged to compensate.
+Feel is layered on top of the derived arc: asymmetric gravity, coyote time
+(100 ms), a jump buffer (120 ms), and variable height via a velocity **clamp**
+rather than a multiplier, because a clamp guarantees a minimum hop while a
+multiplier's result depends on when you happened to release. The clamp is
+0.5894 of full jump velocity, a closed-form minimum hop of 77.8px (1.22
+hero-heights).
 
-![The same frame with the Arcade physics debug overlay on: a magenta 61x116 hitbox inside the 95px hero sprite, and a blue one-way platform body](docs/physics-debug.png)
+One subtlety survives the port unchanged. The constants are continuous-maths
+values, but **both engines integrate with semi-implicit Euler at a fixed 60Hz**,
+which only reaches ~96% of them. `Movement.simulate_apex_px()` simulates the
+integrator (`v += g·dt; y += v·dt`) rather than recording a number somebody
+measured once, so the gap is *derived* from the constants and cannot drift away
+from them. At 60Hz it predicts 214.667px, 95.8% of the closed form — and the
+feel harness, driving the real hero, measures 214.7px. The constant stays as
+readable design intent and the gap is documented and asserted, rather than
+being fudged to compensate. On Godot the height axis is positive-up (an
+elevation), so the same numbers take the opposite sign from the y-down screen
+they were written for; the form is otherwise untouched.
 
-*The debug overlay (<kbd>F1</kbd>). The hero's hitbox is deliberately narrower
-than its art so it fits through one-tile gaps without pixel-hunting the edge.
-The blue box is a one-way platform — note the ground tiles have no bodies,
-because tilemap collision is handled by the layer.*
+The readout below is printed on boot and asserted by the suite, so the two
+cannot disagree:
 
-## Ice is a feel mechanic
+```
+apex, closed form  224.0 px
+apex, measured     214.7 px   (3.35 hero-heights)
+min hop            77.8 px    (1.22 hero-heights)
+rise / fall        0.400 s / 0.244 s
+run-up to top      0.120 s
+gap reach, flat    206.0 px
+rock slide         17.1 px
+coyote / buffer    100 ms / 120 ms
+```
 
-![The hero sliding across a pale blue ice sheet laid into the snow-capped ground](docs/ice.png)
+`HERO_H` is 64 and it is the **art's** height, which is the point of it: the
+bear spans 61–66px across its eight rotations, because a three-quarter view
+shows more vertical extent than a front view — foreshortening, not
+inconsistency. 64 is the centre of that range, and it is also the value that
+lands a 3.5 hero-height jump on *exactly* 7 diamond-heights of 32.
 
-Ice changes how quickly horizontal speed can change, and nothing else. It
-deliberately does **not** raise top speed: Arcade's max-velocity clamp is applied
-last and is absolute, so sliding faster than run speed would mean raising the
-cap — and ice would become a speed boost rather than a hazard.
+## The isometric projection seam
 
-One Phaser detail shaped the whole implementation. **Arcade applies drag only on
-a step where acceleration is exactly zero.** While a direction is held, drag
-contributes nothing at all, so lowering drag alone would not have made ice feel
-slippery while steering. Three numbers have to move together, all in
-`src/config/movement.ts`:
+`src/config/iso.gd` is the only file that knows the geometry of the view.
+Everything else works in screen pixels and asks it to convert. Cell space is
+`(u, v)`, a plain square lattice — no diamonds in it. Screen space is pixels,
+y down. The projection is what makes the square lattice *look* like a diamond
+field:
 
-| | rock | ice |
-|---|---|---|
-| acceleration | 5038 px/s² | 1628 px/s² |
-| turn acceleration | 10075 px/s² | 2713 px/s² |
-| drag (after release) | 5813 px/s² | 465 px/s² |
+```
+screen.x = (u − v) · HALF_W
+screen.y = (u + v) · HALF_H  −  elevation · ELEV_STEP
+```
 
-Measured effect: released at top speed, the hero stops in **38.4px on rock** and
-coasts **418.5px on ice**.
+`TILE_W × TILE_H` is 64 × 32, a true 2:1 diamond; a cell's box
+`[u ± 0.5] × [v ± 0.5]` maps to a diamond of half-width 32 and half-height 16,
+and the four box corners land exactly on its four vertices. `cell_to_screen()`
+returns the diamond's **centre** and `screen_to_cell()` **rounds** rather than
+floors — a pairing that makes the round trip exact for a cell's own centre,
+which the suite asserts over 17 × 17 cells at four elevations.
 
-The ice is placed after the pit so the rock-friction check still runs on rock,
-and clear of the plateau wall so a slide is never cut short by a collision — the
-level layout is load-bearing for the tests, not just for looks.
+What the rounding region actually is was **measured, not assumed**. An earlier
+draft of the file claimed the upper half of a diamond resolves to the cell
+behind it; the suite disproved that on its first run, and the corrected claim is
+stronger: a point anywhere inside the diamond resolves to its own cell, and only
+past a vertex does it flip to a neighbour. So a ground probe taken inside a
+tile's top face needs no correction at all. The real hazard is different, and it
+is *circularity*: `screen_to_cell()` needs the elevation and the elevation needs
+the cell — which is why the ground probe resolves through the level's own
+elevation table rather than through a projection call.
 
-## Pixel scale
+Screen position is **derived here rather than integrated**, and it has to be,
+because of what the projection does to motion: moving one cell along `+u` moves
+the character right *and down*. A model that integrates screen Y therefore
+cannot also have a walkable floor — walking along an axis would drive the
+character into the ground it is standing on. `HeightMover` integrates
+`(u, v, height)` and calls `Iso.lattice_to_screen()` for a screen position.
+`ELEV_STEP` is 1, so elevation *is* height in pixels (it was 32, a step count,
+which let "the jump is 224px" and "the jump is 7 steps" drift apart); the height
+field's numbers and the movement constants' numbers are now the same numbers.
 
-The game renders at **960×540 internal**, doubled to 1080p, with **1 art pixel =
-1 game pixel** everywhere — nothing is resampled, which is what lets concept art
-drop in at its native size instead of being crushed into a sprite slot.
+One rule is worth writing down because it looks like a depth bug while being
+something else: elevation must be expressed as **sibling nodes**, never as
+`z_index`. Nodes sort against each other only while they share a `z_index`, so
+giving one a different one opts it out of y-sorting entirely — the failure is a
+hero walking in front of a wall it should be behind.
 
-| | size |
-|---|---|
-| screen | 960 × 540 — exactly 2× at 1080p |
-| collision tile | 70 × 66 — exactly a 2×3 group of the art's bricks |
-| brick | 35 × 22 — the unit the concept art is actually drawn on |
-| hero | 95 × 124, hitbox 61 × 116 |
-| jump | 434px = 3.5 hero-heights |
+## The height field
 
-The brick is the honest unit: it is what the art has, and the collision tile is
-a whole number of them in both axes. An earlier 70 × 67 was a 2×3 group of
-35 × 22.33 — near enough to look right and wrong enough to resample every brick
-row. That is why the grid is 66 tall and not square.
+A level is text (`levels/feel-test-01.txt`) parsed by `LevelSource` — the only
+file that knows the format — into a `HeightField`: `(cell) → ground height in
+pixels`. Collision is a **query**, not a shape overlap. "What is under me",
+"can I step up to it" and "am I falling" are all one lookup.
 
-The design targets are expressed in **hero heights**, not tiles. Those used to be
-the same number — the hero was exactly one tile — so nothing ever forced a
-choice between them. After the rescale the hero is 1.9 tiles, and a "3.5 tile
-jump" would have been 0.6 hero-heights: the hero could barely hop over its own
-feet. `movement.ts` now says `HERO_H` out loud.
+That is forced rather than chosen. In a 2:1 diamond, moving one cell along `+u`
+moves the character right and down by half a tile; a flat-topped collision box
+puts the floor on a horizontal screen line, so a character walking along an axis
+walks down into it. The two cannot both be true — so the level is a height field
+instead, and collision is something the character asks about rather than
+something it overlaps.
 
-Rescaling also surfaced a failure that is invisible until it bites. **Phaser
-discards a tile collision outright when the overlap exceeds `tileBias`**
-(`TileCheckY`: `oy = body.bottom - tileTop; if (oy > tileBias) oy = 0`), and the
-default is 16. That is fine while a body moves less than 16px per frame and
-silently tunnels through the floor the moment it does not. At this scale a
-falling hero moves ~36px per frame, so `tileBias` is raised to 64. The failure
-is intermittent rather than total — it depends on the sub-pixel phase at the
-contact frame — so it presents as flakiness, not as an obvious bug.
+The format is one character per cell, and the legend says what a character
+*means*, including its ground height, so the whole level is one diffable plane:
+
+```
+[name] feel-test-01
+[tile] 64 32
+[legend] . empty   0
+[legend] # solid   32
+[legend] % solid   64
+[legend] P spawn   32
+[rows]
+################
+####%%%%########
+...
+```
+
+The parser **fails loudly, by name, on every malformed input**: a row of the
+wrong length, a character not in the legend, no spawn, two spawns, an unknown
+`[key]`, a legend line of the wrong shape. Hand-authored text has no compiler,
+so the validation pass is worth more than the rest of the file — a ragged right
+edge otherwise reads as a hole hundreds of pixels from the typo it really is.
+
+`BuiltLevel.from_source()` is the second seam: it turns a parsed level into the
+`HeightField` the renderer and the hero consume, and nothing downstream parses
+anything. Cells the level does not describe are **holes, not ground** — a level
+is a finite thing and walking off it should be a fall.
+
+Collision and geometry come from the one description. `IsoTerrain` draws every
+cell's top face, plus a skirt on whichever camera-facing sides are taller than
+the ground behind them, so a cliff shows a tall face and a kerb a short one from
+one rule. `side_u_visible()`/`side_v_visible()` are comparisons against the
+neighbouring height, not a bitmask: in a diamond the two directions that can
+hide a cell *are* grid neighbours, so "above" from the side-view build has no
+meaning here and the rule is simpler for it. The colours are placeholders keyed
+to height — exact about geometry and provisional about looks, which is the right
+way round, because a placeholder that is geometrically wrong teaches nothing.
+
+`HeightMover` will step up at most `STEP_UP` = 12px; anything higher is a wall
+and the move is refused. Without that limit, "the ground is above me" and "the
+ground is a cliff above me" are the same test and the character walks up
+anything.
+
+The one level is a feel-test rig: 16 × 16, 252 cells, the spawn at `(9, 11)` at
+height 32, a 4 × 5 plateau at 64, and a 2 × 2 pit. The boot print reports all of
+it.
 
 ## Running it
 
 ```bash
-npm install
-npm run dev      # http://localhost:8080
+godot --path . --windowed --resolution 1280x720
+```
+
+The project is at the repo root, hence `--path .`. The viewport is 960 × 540
+with `canvas_items` stretch and **integer** scaling, so the internal image is
+only ever scaled by whole numbers and never resampled — at 1080p it is exactly
+2×. The renderer is `gl_compatibility`, the texture filter is nearest, and
+transforms are snapped to the pixel grid.
+
+There is a static lab for judging the bear **in the projection it will actually
+be drawn in** — an isometric grid with the bear standing on it, no physics, no
+collision, no camera follow. A 3/4 view that reads well flat can read badly once
+it is standing on a diamond, and the only way to find that out is to look:
+
+```bash
+godot --path . res://scenes/bear_lab.tscn
 ```
 
 ## Verification
 
-The acceptance criterion for movement is measured, not eyeballed. All three run
-without a display, driving the real game in headless Chromium:
+All three run without a display:
 
 ```bash
-npm run typecheck   # tsc --noEmit
-npm run smoke       # 24 checks — boots the game, asserts the runtime state
-npm run verify      # 10 checks — measures the movement claims above
+godot --headless --path . --import
+godot --headless --path . --script res://tests/run_tests.gd
+godot --headless --path . --quit-after 5
 ```
 
-Two more are not checks but keep the repo honest, and both need a binary on
-`PATH` rather than a package:
+The second is the suite, and it reports **108 checks**. Its shape is the point:
+the measured value is printed on *every* line, pass or fail, so a regression is
+self-diagnosing rather than a bare "expected true, got false". There is no
+fail-fast — one run reports every regression — and a failure exits non-zero so
+CI can gate on it:
+
+```
+PASS  JUMP_HEIGHT_PX = 3.5 x HERO_H                        224.0 (expected 224.0 +/- 0.001)
+PASS  GRAVITY_RISE = 2h/t^2 (derived)                      2800.0 (expected 2800.0 +/- 0.5)
+PASS  screen_to_cell inverts cell_to_screen for every cell 0 (expected 0)
+PASS  a ragged row is rejected                             a row one character long
+```
+
+The suite's own reporting is a subject too: `report()` returning non-zero on a
+failure is asserted, because the runner once returned `true` alongside `quit()`
+and discarded the exit code — it printed "1 of 32 checks FAILED" to a shell that
+saw success. The third command is a boot smoke test: it loads the level, prints
+the level line and exits 0, which catches a scene that throws on load.
+
+Two further harnesses drive the real physics world, and are the acceptance test
+for the movement port. Both need `--fixed-fps 60` — without it a run executes an
+unpredictable number of physics ticks and the measurements mean nothing:
 
 ```bash
-npm run slice-art     # re-slices public/art/ from the concept sheet (needs ImageMagick)
-npm run screenshots   # rewrites docs/*.png from the running game (needs Chromium)
+godot --headless --fixed-fps 60 --path . --script res://tests/integration/feel_harness.gd
+godot --headless --fixed-fps 60 --path . --script res://tests/integration/height_probe.gd
 ```
 
-`slice-art` is byte-reproducible, so it is only ever needed when the art
-changes. The PNGs it produces are committed, which is what keeps `magick` out of
-the build and out of CI.
+The feel harness drives the hero through a fixed script of segments and measures
+apex, top speed and slide. The height probe asks whether the `(u, v, height)`
+model can carry the movement at all: walking `+u` moves right *and* down, the
+jump apex still measures the ported number, a low step is walked up by exactly
+its height, a cliff is a wall, and walking off a terrace falls.
 
-`verify` is the interesting one. It records per-frame state from inside the
-scene's own update loop, then drives real key presses and checks the results
-against what `movement.ts` claims:
-
-```
-PASS  held jump apex ~434px (3.5 hero-heights)  apex 415.9px (3.35 hero-heights)
-PASS  tap jump has a floor (>= 151px)           apex 208.0px (1.68 hero-heights)
-PASS  run reaches max speed 620px/s             max |vx| 620px/s
-PASS  ground friction stops crisply             slid 38.4px, final vx 0.0
-PASS  standing still: y is stable               y range 0.000px over 60 frames
-PASS  surfaceAt distinguishes ice from rock     x=1500 -> ice, x=80 -> rock
-PASS  ice: released at speed, hero slides       slid 418.5px from vx 620
-PASS  air tuning ignores the surface            mid-air turn 10075 over ice and rock
-```
-
-Three of those guard specific decisions. The standing-still check protects the
-choice to leave gravity *on* while grounded rather than zeroing it, which would
-make the body oscillate on a two-frame cycle and visibly shimmer by one pixel.
-The ice checks are written as **relationships rather than exact distances**
-(over 232px of slide, versus under 124px on rock), so the ice constants can be
-tuned by feel without the suite fighting back. And the air-tuning check exists
-because `isTurning` is evaluated before `grounded`, which makes it easy to
-accidentally fold the surface into air control — a bug that is invisible in
-normal play, since a mid-air ground probe reads empty air and reports `rock`
-anyway. That one pokes the hero's state directly to force each surface rather
-than driving the keyboard, because no real jump can reach the case.
+Where coverage is **thin**, honestly: nothing tests the art pipeline
+(`tools/build_bear.gd`, `tools/measure_limbs.gd`), nothing tests the drawing
+(`IsoTerrain`, `IsoGrid`), and nothing tests `level_scene` beyond the boot smoke
+test. The pure-logic rules — which acceleration applies, when a turn counts as a
+turn — are unit-tested rather than measured in a physics world, deliberately:
+measuring the airborne-turn rule by sampling a frame of a real jump failed once
+for timing reasons that had nothing to do with the rule.
 
 ## Layout
 
 ```
 src/
-  config/    tuning constants and the Phaser game config
-  input/     the single seam between keyboard and game — nothing else reads keys
-  level/     the ASCII level source, and the only file that knows that format
-  objects/   the hero; tick() is physics only, so animation stays additive
-  art/       the texture keys and what each tile index means
-  scenes/    Boot (loads the art) and Level
-scripts/     the two headless verification harnesses, the art slicer, screenshots
-public/art/  the sliced PNGs the game loads
-assets/concepts/   concept art and ASSET-LOG.md
+  config/    movement.gd (the tuning) and iso.gd (the projection seam)
+  level/     level_source.gd (the text format), height_field.gd, build_level.gd
+  objects/   height_mover.gd (the model) and hero.gd (input + presentation)
+  scenes/    level_scene.gd, iso_terrain.gd, iso_grid.gd, bear_lab.gd
+  input/     input_state.gd — the four things the hero reads, in one place
+  art/       bear_frames.gd — builds SpriteFrames from the registered strips
+tests/
+  run_tests.gd, harness.gd
+  unit/         seven files of pure checks
+  integration/  feel_harness.gd, height_probe.gd and their drivers
+tools/       build_bear.gd, measure_limbs.gd, thicken_limbs.gd,
+             probe_capabilities.gd, probe_engine.gd, setup_input_map.gd
+scenes/      level.tscn (the game), hero.tscn, bear_lab.tscn
+levels/      feel-test-01.txt
+assets/art/       source/ (PixelLab generations), bear/ (the registered strips)
+assets/concepts/  concept art, the logs, the pose work
 ```
 
-Three seams are deliberate. `input/controls.ts` is the only file that touches
-the keyboard plugin, so gamepads and rebinding are a change to one file.
-`level/buildLevel.ts` is the only file that knows the level format, so swapping
-in Tiled JSON means changing that file and deleting `levels.ts`. And the hero
-never holds a `TilemapLayer` — the level exposes a plain
-`surfaceAt(x, y) => 'rock' | 'ice'`, so adding a third surface touches no player
-code.
+Three seams are deliberate. `iso.gd` is the only file that knows the projection,
+so a 2:1-to-4:3 change — or diamond-to-something-else — touches that file and no
+player code. `level_source.gd` is the only file that knows the level format, so
+swapping in Tiled JSON means changing that file and nothing else.
+`HeightMover` is the character, and `Hero` extends it rather than copying it, so
+the probe that graded the model measures the thing the game actually runs. The
+input seam is the same one the side-view hero had: `hero.input_override` lets a
+test or a driver move the bear without a keyboard, so measurements are
+independent of the input system and of Godot's event dispatch order.
 
 ## Art
 
-Everything on screen is real art now, sliced out of one FLUX concept sheet by
-[`scripts/slice-art.mjs`](scripts/slice-art.mjs) into two PNGs in `public/art/`.
-The sheet is 1536×1024 of illustration at six source pixels per art pixel; the
-slicer reduces it to 1:1, keys it, and composes it into the shapes the game asks
-for. Nothing is resampled at runtime — the hero drops in at exactly its
-`HERO_H` and the bricks at exactly 35×22.
+The Godot art pipeline is **GDScript tooling, not the retired Node slicer**.
+`tools/build_bear.gd` reads PixelLab source generations under
+`assets/art/source/bear/<character>/<clip>/<direction>/<n>.png` (a `CURRENT`
+file names which character), registers them, and composes one strip per
+`(clip, direction)` plus a `layout.json`.
 
-The concept art in `assets/concepts/` is art direction and provenance. The
-committed PNGs are the shipped assets, and the slicer is byte-reproducible, so a
-diff in `public/art/` always means the art changed.
+Registration is translation rather than cropping, and it is **not optional**:
+the model places each frame independently — on the idle alone the feet move 4px
+vertically across four frames, and the body drifts 5px between directions and up
+to 8px across them. So the lowest opaque row of each frame goes to a common
+ground row and the opaque bbox's centre-x goes to a common centre column. An
+**airborne** clip gets one shared translation instead, because planting each
+frame on the ground would clamp the leap back onto the floor on exactly the
+frames where the bear is highest, deleting the jump. A frame that would not fit
+is a named failure, not a clipped leg in the game. A pass also repairs limbs the
+model sometimes fills with the outline's near-black, recolouring the interior of
+any region thick enough to survive a 5 × 5 solid test — a thickness guard, not
+a list of coordinates, so the one-pixel outline and the face are untouched by
+construction.
 
-**The hero has no green scarf, and that is a correction rather than a loss.**
-The scarf was introduced for the *placeholder*, whose fur highlight was `#F2F5F8`
-against snow at `#EAF2F8` — a few percent apart, so a cream bear vanished into a
-snow tile. The real art does not have that problem: the fur is a warm cream
-against white snow with a hard navy outline around the whole silhouette, and the
-sliced bear composited over a wall of real snow tiles reads cleanly. The scarf
-solved a problem the real art never had, and the sheet that pairs the hero with
-the terrain in a single generation — the one whose scale the game was rescaled
-against — simply doesn't have one.
+`BearFrames` builds the `SpriteFrames` at **runtime** rather than saving a
+`.tres`: a tool-built resource would reference textures the tool had only just
+written, and without an import pass in between Godot embeds them inline —
+measured at 351KB against 566 bytes for the same asset. Reading the bytes
+sidesteps the ordering, so re-running the art build and the game back to back
+just works.
 
-Two things about the keying are worth knowing, because both are invisible in the
-result and both cost real time to find:
+`Hero` then plays `<clip>-<facing>` for the four diagonal facings that are the
+lattice axes on screen. Two traps are guarded: `play()` is only called when the
+animation changes (calling it every frame restarts it and the bear sits on frame
+0), and `speed_scale` is reset in every branch because it is per-sprite and
+sticky. The bear is drawn facing left in the art's west-ish facings, and there
+is no mirroring — the four facings the game uses are all distinct, which
+sidesteps the flipped-slice problem the side-view build had to work around.
 
-- **The sheet's grey backdrop is nearly the same colour as the bear's shaded
-  fur** (`rgb(165,164,159)` against `rgb(174,177,170)` — nine levels). Any colour
-  tolerance wide enough to key the backdrop punches through the bear's hip and
-  hind leg. So the slicer does not threshold: it floods the backdrop from the
-  image border, using the closed navy outline as a wall.
-- **The drop shadow needs removing on its own terms.** It is cool mid-tones
-  (`lum ≈ 132`, `R−B < 0`) where the fur is warm and the outline is far darker,
-  so it can be identified — but only after the flood, and only by spreading from
-  the transparent edge, because it is also the bridge the flood uses to reach the
-  bear's underside. A last cut at the lowest outline row removes the flat smear
-  under the paws that survives both.
+Two tools exist because "the arms look thin" is an art judgement that is hard to
+act on. `tools/measure_limbs.gd` turns it into an arm/leg thickness ratio — the
+first bear measured **0.25** (3.0px arms against 12.0px legs), which reads as a
+barrel with twigs bolted on. `tools/thicken_limbs.gd` was built and tested to
+close that gap, and it is kept but **not used**: every fix was an exclusion that
+revealed the next thin detail — the eye and nose first, then the fingers — and
+the honest conclusion is that limb thickness is not reachable by any lever
+PixelLab exposes (`proportions` has lengths and shoulder span, not thickness)
+nor by a morphological pass, so the arms are what they are until someone
+redraws them by hand.
 
-Four smoke checks guard the shipped sprite, reading the loaded PNG back so they
-assert what was *shipped* rather than what the code intended: that the texture is
-95×124 at native scale, that the art is planted on the last row (the hitbox is
-pinned to it), that the rim is dark enough to hold the silhouette against snow,
-and that **the face is not mirrored** — the head's dark features must stay right
-of centre, because `setFlipX` mirrors the whole sprite and a left-facing slice
-would be wrong in *both* directions.
+`tools/probe_capabilities.gd` and `tools/probe_engine.gd` **ask the engine what
+4.7.2 actually offers** rather than trusting reports. Several decisions in the
+port were made from second-hand claims about engine limitations — ghost
+collisions, broken isometric autotiling, no physics interpolation, an input
+edge-detection hazard — and reports age. These read the classes, enums and
+project settings out of `ClassDB`, so a limitation is authored around only if it
+exists, and a setting this project relies on prints as MISSING rather than as a
+silently-ignored line in `project.godot`.
 
-The tile roles are measured rather than chosen. Rows 1–2 of the sheet's grid
-carry 29–30% snow pixels and rows 3–6 carry none, and the slicer fails if that
-inverts — otherwise a future sheet could swap the snow cap for the fill brick
-and every ground row would grow a snow cap with nothing erroring. It also fails
-if the ice brick and the fill brick end up too close in colour after quantising,
-because that is the game's only mechanic becoming invisible.
-
-Worth recording, since it shaped all of this: FLUX produces good art direction
-but **nothing that a prompt can specify numerically**. Asked for a magenta key
-colour it returns gray; asked for a 24×32 sprite it returns full illustration
-detail; asked for tiles that fill their cell it returns rounded rectangles on a
-backdrop. What it does honour is anything it can see — style, palette and
-identity all transfer image-to-image — and what it will not do is agree on a
-scale across separate generations, which is why the hero and the terrain have to
-come out of the same image. The numbers the game needs are then imposed by the
-slicer, not requested from the model.
-
-Full findings, measurements and the pipeline as it was actually built are in
-[`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md), with the raw
-evidence in `assets/concepts/tests/`.
+The findings behind all of this are in
+[`assets/concepts/ASSET-LOG.md`](assets/concepts/ASSET-LOG.md) (rounds 1–3, the
+static art) and
+[`assets/concepts/ANIMATION-LOG.md`](assets/concepts/ANIMATION-LOG.md) (the
+one-generation-per-pose animation work). Both record the retired Node pipeline —
+provenance and measurements, not this build's tooling. Two findings shaped the
+art most. **FLUX honours content but ignores numbers and geometry** — asked for
+a magenta key colour it returns gray, asked for a 24 × 32 sprite it returns full
+illustration detail — so the numbers the game needs are imposed by the slicer,
+never requested from the model, and a character and its terrain have to come out
+of **one image** to agree on scale. And the sheet's grey backdrop is only nine
+levels from the bear's shaded fur (`rgb(165,164,159)` against `rgb(174,177,170)`),
+so keying cannot threshold: it floods the backdrop from the border with the navy
+outline as a wall. The FLUX hero also lost its green scarf when the game was
+resized against a sheet that did not have one — the scarf had existed to
+separate a cream bear from snow, and the real fur's hard navy rim does that
+already.
 
 ## Roadmap
 
-- ~~**Real art**~~ — done: sliced from the concept sheet into `public/art/`, loaded in `BootScene`, with the autotile pass deriving snow caps from the level
-- **Animation** — idle/run/jump, which `Player.tick()`'s physics/presentation split was built for. One generation per pose: a strip comes back with near-identical stances
-- **More levels** — there is currently exactly one, and it is a feel-test rig
-- **Breakable ice** — the surface system is in place; crumbling needs tile mutation, per-tile timers and a way to restore state on respawn. The sheet's grid has three spare brick variants the slicer does not use, which is where its art would come from
+- **Tile art** — the terrain is drawn as flat placeholder faces keyed to height.
+  There is no tileset; `IsoTerrain` derives its geometry exactly and is
+  provisional only about looks.
+- **Animation** — partial. Five clips are registered in all four diagonal
+  facings under `assets/art/bear/` — idle (4 frames, 6fps), run (8, 12fps),
+  jump (9, 8fps, airborne), fall (4, 6fps, airborne) and land (4, 14fps) — and
+  `Hero`'s state machine selects idle, run, jump and fall. `land` is built but
+  not yet chosen, and there is no `slide`. The separate FLUX pose work — a
+  four-frame run cycle generated, registered and quantised, the other six poses
+  (idle ×2, jump, fall, land, slide) not generated, and nothing wired into the
+  then-current game — is paused at that gate in ANIMATION-LOG.md.
+- **More levels** — there is exactly one, and it is a feel-test rig.
+- **Game systems** — no enemies, no collectibles, no goal, no respawn.
+- **Web export** — the preset and the renderer are in place, but nothing is
+  published and the Pages workflow still builds the Phaser tree.
 
 ## License
 

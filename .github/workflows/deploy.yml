@@ -20,34 +20,78 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  # Pinned exactly. The project pins 4.7.2 in project.godot and the engine
+  # reference; letting CI float would let the deployed build drift from the one
+  # that was tested against.
+  GODOT_VERSION: 4.7.2-stable
+  # Godot looks for templates under `<user data dir>/export_templates/<version>`,
+  # where the version string is the one in the .tpz's own version.txt. For this
+  # release that is `4.7.2.stable` — note the dot, not the hyphen used in the
+  # release tag.
+  GODOT_TEMPLATE_DIR: 4.7.2.stable
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          # Vite 7 needs Node >= 20.19 or >= 22.12. 22 is the oldest line that
-          # satisfies it, which keeps the runner image choices wide.
-          node-version: 22
-          cache: npm
+      # The editor is needed as well as the templates, and that is not optional:
+      # `--script` is an editor-build-only flag, so the test suite cannot run
+      # from an export template. Both downloads are the official release assets.
+      - name: Install Godot ${{ env.GODOT_VERSION }}
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          mkdir -p "$HOME/godot"
+          curl -sSL --retry 3 -o /tmp/godot.zip \
+            "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d "$HOME/godot"
+          chmod +x "$HOME/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          echo "$HOME/godot" >> "$GITHUB_PATH"
+          # Symlink to a stable name so later steps are not tied to the filename.
+          ln -s "$HOME/godot/Godot_v${GODOT_VERSION}_linux.x86_64" "$HOME/godot/godot"
 
-      # `npm ci` over `npm install`: it installs the lockfile exactly and
-      # fails if package.json and the lockfile disagree, so CI cannot silently
-      # drift onto a different Phaser version than the one that was tested.
-      - run: npm ci
+      - name: Install export templates
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -sSL --retry 3 -o /tmp/templates.tpz \
+            "${base}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_DIR}"
+          mkdir -p "$dest"
+          # The .tpz is a zip containing a single `templates/` directory; its
+          # *contents* are what belong in the version directory.
+          unzip -q /tmp/templates.tpz -d /tmp/tpl
+          mv /tmp/tpl/templates/* "$dest/"
 
-      # This is `tsc --noEmit && vite build`, so a type error fails the deploy
-      # rather than shipping. Same command as `npm run build` locally.
-      - run: npm run build
+      # A fresh clone has no `.godot/` cache, and the export needs it: the class
+      # cache and the imported art are both regenerated here. Without this the
+      # export fails on a clean checkout even though it works locally.
+      - name: Import project
+        run: "$HOME/godot/godot" --headless --path . --import
+
+      # The suite is the build gate, not a formality. It is 108 checks and exits
+      # non-zero on any failure, so a red suite stops the deploy here.
+      - name: Run tests
+        run: "$HOME/godot/godot" --headless --path . --script res://tests/run_tests.gd
+
+      - name: Export web build
+        run: |
+          set -euo pipefail
+          # Godot does not create the output directory and fails if it is absent.
+          mkdir -p export/web
+          "$HOME/godot/godot" --headless --path . --export-release Web export/web/index.html
 
       - uses: actions/configure-pages@v6
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          # dist/ is gitignored and built here. Nothing built is ever committed.
-          path: dist
+          # `export/` is gitignored and built here. Nothing built is committed.
+          # Godot's web export uses relative paths throughout, so it serves
+          # correctly from the /polar-adventures/ subpath without configuration.
+          path: export/web
 
   deploy:
     needs: build
