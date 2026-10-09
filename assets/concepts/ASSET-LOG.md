@@ -4,6 +4,13 @@ Prototype round 1, 2026-09-16. Model: `flux2_pro_preview` for all six.
 
 Local files are concept/reference art, not production sprites. See "Known limits" below.
 
+> **Superseded pipeline.** The Node slicer this log describes
+> (`scripts/slice-art.mjs` → `public/art/`) belonged to the retired Phaser build
+> and is gone, along with `public/art/` itself. The Godot build registers its art
+> from PixelLab source generations through `tools/build_bear.gd` into
+> `assets/art/bear/`. The findings and measurements below still stand as the
+> record of the prototype round; the commands and paths do not.
+
 ## Locked art direction
 
 - Style: 16-bit pixel art, SNES-era platformer

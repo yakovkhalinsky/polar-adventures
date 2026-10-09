@@ -1,12 +1,21 @@
 # Animation — progress and how to resume
 
-**Status: paused at the stage-1 gate.** The run cycle is generated, sliced,
-registered, quantised and measurable; it has not been wired into the game, and
-the other six poses have not been generated.
+> **Superseded pipeline.** Everything below describes the retired Phaser/Node
+> route — `scripts/slice-poses.mjs`, `scripts/slice-art.mjs`, `public/art/` and
+> every `npm run *` are gone. The current build is Godot 4.7.2 and its art is
+> registered by `tools/build_bear.gd` into `assets/art/bear/`. The dated entries
+> are kept as the record of what generating them took, not as instructions.
+
+**Status: the stage-1 gate has since been passed on the Godot side.**
+`assets/art/bear/layout.json` registers **20 strips** — five clips (idle, run,
+jump, fall, land) in four directions each — and `src/objects/hero.gd` wires
+**four** of them: `_clip_name()` returns `jump`, `fall`, `run` or `idle`. `land`
+is generated and registered but never selected, so it is built and unplayed. The
+"six poses pending" note in the body below is Phaser-era and no longer describes
+this tree.
 
 The poses, this file and the preview page are **committed** (the header and §9
-said otherwise until 2026-09-19; they were committed in `342a59e` and the tree
-is clean).
+said otherwise until 2026-09-19; they were committed in `342a59e`).
 
 Companion: [`ASSET-LOG.md`](ASSET-LOG.md) (rounds 1–3, the static art),
 `run-cycle-preview.html` in this folder (the run cycle animating at 1×, for
