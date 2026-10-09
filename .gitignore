@@ -2,3 +2,9 @@ node_modules/
 dist/
 *.local
 .DS_Store
+
+# Secrets. `.env` holds the PixelLab API token. The `*.local` rule above does
+# NOT cover it, and this repo deploys to GitHub Pages from a public workflow —
+# a committed .env is a published key, not just a private one.
+.env
+.env.*

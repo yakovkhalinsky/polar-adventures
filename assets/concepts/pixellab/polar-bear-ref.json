@@ -1,0 +1,173 @@
+{
+  "character": {
+    "id": "4a525473-c0d6-4c74-bc56-a890ca4cee88",
+    "name": "Idle",
+    "prompt": "chunky cream-furred polar bear standing upright on two legs, side view, navy-blue outline, flat pixel-art shading",
+    "size": {
+      "width": 96,
+      "height": 124
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "Polar_Bear_ref-Idle.png",
+    "cell_size": {
+      "width": 176,
+      "height": 176
+    },
+    "sheet_size": {
+      "width": 1584,
+      "height": 2992
+    },
+    "columns": 9,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "idle",
+        "animation_group_id": "12963066-be60-471b-9b1d-031ce089570c",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "jump",
+        "animation_group_id": "1a78b314-b27c-4e16-8e52-49a8b109e3ec",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 5,
+        "animation": "jump-wv3",
+        "animation_group_id": "2ec0feb9-231f-4c0e-9e43-d662d8f1c3d8",
+        "direction": "west"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 5,
+        "animation": "jumpv3-w",
+        "animation_group_id": "3a83e6fd-59dd-4096-9e2d-eda4ba8731cd",
+        "direction": "west"
+      },
+      {
+        "row": 5,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "run",
+        "animation_group_id": "3fdd8bec-9bc3-40a5-969f-a46e2af12108",
+        "direction": "east"
+      },
+      {
+        "row": 6,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "jump-w",
+        "animation_group_id": "56938f26-7971-484a-b52c-76a9abd36b22",
+        "direction": "west"
+      },
+      {
+        "row": 7,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "jumprun-w",
+        "animation_group_id": "64d3340c-9292-4937-a32e-294d2872d711",
+        "direction": "west"
+      },
+      {
+        "row": 8,
+        "type": "animation",
+        "frame_count": 6,
+        "animation": "slide",
+        "animation_group_id": "897c3254-a794-431f-8c63-fba024436f43",
+        "direction": "east"
+      },
+      {
+        "row": 9,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "run-w",
+        "animation_group_id": "9ac1b451-44cb-4c2b-8773-e842f4f6abf7",
+        "direction": "west"
+      },
+      {
+        "row": 10,
+        "type": "animation",
+        "frame_count": 5,
+        "animation": "jump-v3",
+        "animation_group_id": "b75f9379-fe26-4e3c-b627-eba7c182b9ef",
+        "direction": "east"
+      },
+      {
+        "row": 11,
+        "type": "animation",
+        "frame_count": 6,
+        "animation": "slide-w",
+        "animation_group_id": "b7617478-2a46-4b90-a6eb-027c3636173f",
+        "direction": "west"
+      },
+      {
+        "row": 12,
+        "type": "animation",
+        "frame_count": 7,
+        "animation": "jump2f-w",
+        "animation_group_id": "c79f68af-888b-4a6a-96ac-14815f1672ce",
+        "direction": "west"
+      },
+      {
+        "row": 13,
+        "type": "animation",
+        "frame_count": 5,
+        "animation": "slide-wv3",
+        "animation_group_id": "cc341ca8-3b49-4ca4-aba9-15edcf975594",
+        "direction": "west"
+      },
+      {
+        "row": 14,
+        "type": "animation",
+        "frame_count": 5,
+        "animation": "slide-v3",
+        "animation_group_id": "d47089e9-9939-44c3-aa95-93a513967686",
+        "direction": "east"
+      },
+      {
+        "row": 15,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "idle-w",
+        "animation_group_id": "d99c30e3-2f66-48d9-b926-7b2f89fd8753",
+        "direction": "west"
+      },
+      {
+        "row": 16,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "jump2-w",
+        "animation_group_id": "fa49469a-fde0-4a78-ba4b-357c6a035279",
+        "direction": "west"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-09-19T11:41:30.678921+00:00"
+}

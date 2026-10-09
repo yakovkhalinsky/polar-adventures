@@ -1,0 +1,77 @@
+{
+  "character": {
+    "id": "9588f009-2831-499c-be88-52c148a18335",
+    "name": "Idle",
+    "prompt": "chunky kawaii polar bear standing upright on two legs, seen in clean side profile, big round head with small round ears, short blunt muzzle, heavy pear-shaped body, short stubby arms held close to the chest, thick legs, cream white fur, bold clean shapes, one dark outline",
+    "size": {
+      "width": 176,
+      "height": 176
+    },
+    "directions": 8,
+    "view": "side"
+  },
+  "spritesheet": {
+    "path": "bear-cartoon-Idle.png",
+    "cell_size": {
+      "width": 176,
+      "height": 176
+    },
+    "sheet_size": {
+      "width": 1584,
+      "height": 880
+    },
+    "columns": 9,
+    "pivot": "cell-center",
+    "rows": [
+      {
+        "row": 0,
+        "type": "rotations",
+        "frame_count": 8,
+        "directions": [
+          "south",
+          "south-east",
+          "east",
+          "north-east",
+          "north",
+          "north-west",
+          "west",
+          "south-west"
+        ]
+      },
+      {
+        "row": 1,
+        "type": "animation",
+        "frame_count": 9,
+        "animation": "jump",
+        "animation_group_id": "3cd9db8d-271b-4a51-8be8-131ba5d1d39f",
+        "direction": "east"
+      },
+      {
+        "row": 2,
+        "type": "animation",
+        "frame_count": 8,
+        "animation": "run",
+        "animation_group_id": "a3ff3b49-5f77-4fee-8689-5689e975fce2",
+        "direction": "east"
+      },
+      {
+        "row": 3,
+        "type": "animation",
+        "frame_count": 6,
+        "animation": "slide",
+        "animation_group_id": "cb253537-26f6-4bb4-a2d5-e5377019cb7b",
+        "direction": "east"
+      },
+      {
+        "row": 4,
+        "type": "animation",
+        "frame_count": 4,
+        "animation": "idle",
+        "animation_group_id": "db6f30a5-e859-4e27-a33c-3a8cc34fbdc9",
+        "direction": "east"
+      }
+    ]
+  },
+  "export_version": "1.0",
+  "export_date": "2026-09-19T08:29:56.521771+00:00"
+}

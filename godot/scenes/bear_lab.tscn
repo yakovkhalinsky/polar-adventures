@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+; The bear lab. A static scene whose only job is to let the eye judge the bear in
+; the projection it will be drawn in.
+;
+; NODE ORDER IS LOAD-BEARING. `IsoGrid` comes before `Bear` so that when the two tie
+; on Y — a character standing on a cell is at the same screen row as that cell — tree
+; order decides, and the character wins. The first version of this scene drew the grid
+; from the root's own `_draw()`, and the bear sorted underneath it and was completely
+; invisible.
+;
+; `Bear` gets its origin at its FEET via `offset` in script, matching the hero scene.
+; An AnimatedSprite2D defaults to a CENTRED origin, which would sort the bear by its
+; middle rather than by where it meets the ground.
+
+[ext_resource type="Script" path="res://scripts/scenes/bear_lab.gd" id="1_lab"]
+[ext_resource type="Script" path="res://scripts/scenes/iso_grid.gd" id="2_grid"]
+
+[node name="BearLab" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_lab")
+
+[node name="IsoGrid" type="Node2D" parent="."]
+script = ExtResource("2_grid")
+
+[node name="Bear" type="AnimatedSprite2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="."]

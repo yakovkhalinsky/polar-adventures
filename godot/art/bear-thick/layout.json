@@ -1,0 +1,126 @@
+{
+  "frame_h": 84.0,
+  "frame_w": 68.0,
+  "strips": [
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "idle-north-east"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "idle-north-west"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "idle-south-east"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "idle-south-west"
+    },
+    {
+      "fps": 12.0,
+      "frames": 8.0,
+      "loop": true,
+      "name": "run-north-east"
+    },
+    {
+      "fps": 12.0,
+      "frames": 8.0,
+      "loop": true,
+      "name": "run-north-west"
+    },
+    {
+      "fps": 12.0,
+      "frames": 8.0,
+      "loop": true,
+      "name": "run-south-east"
+    },
+    {
+      "fps": 12.0,
+      "frames": 8.0,
+      "loop": true,
+      "name": "run-south-west"
+    },
+    {
+      "fps": 8.0,
+      "frames": 9.0,
+      "loop": false,
+      "name": "jump-north-east"
+    },
+    {
+      "fps": 8.0,
+      "frames": 9.0,
+      "loop": false,
+      "name": "jump-north-west"
+    },
+    {
+      "fps": 8.0,
+      "frames": 9.0,
+      "loop": false,
+      "name": "jump-south-east"
+    },
+    {
+      "fps": 8.0,
+      "frames": 9.0,
+      "loop": false,
+      "name": "jump-south-west"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "fall-north-east"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "fall-north-west"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "fall-south-east"
+    },
+    {
+      "fps": 6.0,
+      "frames": 4.0,
+      "loop": true,
+      "name": "fall-south-west"
+    },
+    {
+      "fps": 14.0,
+      "frames": 4.0,
+      "loop": false,
+      "name": "land-north-east"
+    },
+    {
+      "fps": 14.0,
+      "frames": 4.0,
+      "loop": false,
+      "name": "land-north-west"
+    },
+    {
+      "fps": 14.0,
+      "frames": 4.0,
+      "loop": false,
+      "name": "land-south-east"
+    },
+    {
+      "fps": 14.0,
+      "frames": 4.0,
+      "loop": false,
+      "name": "land-south-west"
+    }
+  ]
+}

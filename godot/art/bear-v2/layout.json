@@ -1,0 +1,18 @@
+{
+  "frame_h": 88,
+  "frame_w": 68,
+  "strips": [
+    {
+      "fps": 8.0,
+      "frames": 9,
+      "loop": false,
+      "name": "jump-south-east"
+    },
+    {
+      "fps": 8.0,
+      "frames": 9,
+      "loop": false,
+      "name": "jump-south-west"
+    }
+  ]
+}

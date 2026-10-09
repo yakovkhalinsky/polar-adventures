@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "smoke": "node scripts/smoke.mjs",
     "verify": "node scripts/verify-feel.mjs",
+    "build-art": "node scripts/build-art.mjs",
     "slice-art": "node scripts/slice-art.mjs",
+    "slice-poses": "node scripts/slice-poses.mjs",
+    "preview-hero": "node scripts/preview-hero.mjs",
+    "review-limbs": "node scripts/review-limbs.mjs",
     "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {

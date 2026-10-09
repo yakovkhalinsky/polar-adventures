@@ -26,7 +26,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -106,8 +106,15 @@ const magick = (() => {
   return true;
 })();
 
+/**
+ * Exported so scripts/slice-poses.mjs can key the generated poses with THIS
+ * function rather than a copy of it. The keying is the subtle part of the
+ * pipeline — a dilated wall, a separate shadow pass, a ground-plane cut — and
+ * two copies of it would drift.
+ */
+
 /** Reads any image into raw non-premultiplied RGBA. */
-function loadRGBA(file) {
+export function loadRGBA(file) {
   const [w, h] = execFileSync('magick', ['identify', '-format', '%w %h', file])
     .toString()
     .trim()
@@ -120,7 +127,7 @@ function loadRGBA(file) {
 }
 
 /** Writes raw RGBA out as a PNG, via ImageMagick's raw reader. */
-function writePng(file, w, h, buf) {
+export function writePng(file, w, h, buf) {
   execFileSync(
     'magick',
     // -depth 8 explicitly: this machine's magick is a Q16 build, and 8-bit
@@ -148,7 +155,7 @@ function writePng(file, w, h, buf) {
  * otherwise expect the same art in slightly different colours, and look at the
  * preview before committing it.
  */
-function quantise(file, colors) {
+export function quantise(file, colors) {
   const tmp = `${file}.tmp.png`;
   try {
     execFileSync('magick', [
@@ -199,7 +206,7 @@ const isBackdrop = (buf, p) =>
  * 6px grid but the illustration's own bbox is a pixel or two off it, so the
  * mapping is spread evenly across the whole rect rather than dropped.
  */
-function decimate(src, sx, sy, sw, sh, ow, oh) {
+export function decimate(src, sx, sy, sw, sh, ow, oh) {
   const out = Buffer.alloc(ow * oh * 4);
   const R = [];
   const G = [];
@@ -270,7 +277,7 @@ function decimate(src, sx, sy, sw, sh, ow, oh) {
  *
  * Returns a mask of pixels to CLEAR, plus the ground row.
  */
-function keyHero(buf, w, h) {
+export function keyHero(buf, w, h) {
   const n = w * h;
 
   const wall = new Uint8Array(n);
@@ -836,7 +843,22 @@ function main() {
   const preview = composePreview(hero.png, { cells, ledge });
   const previewPath = join(ROOT, 'assets/concepts/tests/sliced-scene.png');
   writePng(previewPath, preview.w, preview.h, preview.buf);
-  execFileSync('magick', [previewPath, '-filter', 'point', '-resize', '300%', previewPath]);
+  // -strip, for the same reason quantise() does it: without it magick stamps
+  // date:create/date:modify/date:timestamp into the PNG, so this file came out
+  // pixel-identical on every run but never byte-identical — `npm run slice-art`
+  // dirtied it with nothing but timestamps, and a real change was invisible in
+  // the diff.
+  execFileSync('magick', [
+    previewPath,
+    '-filter',
+    'point',
+    '-resize',
+    '300%',
+    '-strip',
+    '-depth',
+    '8',
+    previewPath,
+  ]);
 
   const checked = verifyOutputs(heroPath, tilesPath);
   console.log(
@@ -851,4 +873,8 @@ function main() {
   console.log(`wrote ${previewPath.replace(ROOT + '/', '')}  (preview, 3x)`);
 }
 
-main();
+// Only when run directly. scripts/slice-poses.mjs imports keying from this file,
+// and importing a script must not re-slice the shipped art as a side effect.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

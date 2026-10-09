@@ -1,0 +1,38 @@
+; feel-test-01 — a height-field level.
+;
+; One character per cell. The legend says what a character MEANS, including how high its
+; ground is, so the whole level is one diffable plane rather than a stack of them. A
+; plane-per-elevation reads better in a diagram and much worse in a diff, because moving
+; one block means editing two planes and the reviewer has to hold both in their head.
+;
+; EVERY ROW MUST BE THE SAME LENGTH, and every character must be in the legend. Both are
+; checked at load and fail loudly by name, because hand-authored text has no compiler:
+; a row one character short gives a ragged right edge that reads as a hole several
+; hundred pixels away from the typo.
+
+[name] feel-test-01
+[tile] 64 32
+
+; <char>  <kind>  <ground height in px>
+[legend] . empty   0
+[legend] # solid   32
+[legend] % solid   64
+[legend] P spawn   32
+
+[rows]
+################
+################
+####%%%%########
+####%%%%########
+####%%%%########
+####%%%%########
+####%%%%########
+#####..#########
+#####..#########
+################
+################
+#########P######
+################
+################
+################
+################

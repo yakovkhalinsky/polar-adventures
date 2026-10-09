@@ -1,0 +1,767 @@
+<meta charset="utf-8">
+<title>Bear Sprite Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #eef1f4;
+    --surface: #ffffff;
+    --ink: #131a21;
+    --muted: #5a6673;
+    --rule: #d3dae0;
+    --accent: #2b6480;
+    --stage: #2a323c;
+    --stage-rule: #4b5763;
+    --flag: #8a5a1c;
+
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --step: 1rem;
+    --gutter: 20px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #11161c;
+      --surface: #1a212a;
+      --ink: #e9eef3;
+      --muted: #939fac;
+      --rule: #2b3541;
+      --accent: #74b6d1;
+      --stage: #222a34;
+      --stage-rule: #3f4b58;
+      --flag: #d3a05e;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #11161c;
+    --surface: #1a212a;
+    --ink: #e9eef3;
+    --muted: #939fac;
+    --rule: #2b3541;
+    --accent: #74b6d1;
+    --stage: #222a34;
+    --stage-rule: #3f4b58;
+    --flag: #d3a05e;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-block: 0 4rem;
+  }
+
+  .wrap {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+    display: flex;
+    flex-direction: column;
+    gap: 3.5rem;
+  }
+
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-block: 3rem 0;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  .lede {
+    font-size: 1.0625rem;
+    color: var(--muted);
+    max-width: 44rem;
+    margin: 0;
+  }
+
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+  }
+
+  .status li {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.2rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  .status li[data-flag] {
+    color: var(--flag);
+    border-color: color-mix(in srgb, var(--flag) 45%, transparent);
+  }
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h2 + p, section > p {
+    margin: 0;
+    max-width: 44rem;
+  }
+
+  p { margin: 0; }
+
+  .mono {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  figure img {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
+  }
+
+  figcaption {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* --- the stage: the dark slate the bear is actually seen against --- */
+
+  .controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+  }
+
+  .controls label {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .controls input[type="range"] { width: 9rem; accent-color: var(--accent); }
+
+  .controls button {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.3rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .controls button:focus-visible,
+  .controls input:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .plates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 1rem;
+  }
+
+  .plate {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .stage {
+    background: var(--stage);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1rem 0.75rem;
+    min-height: 12rem;
+    flex-wrap: wrap;
+  }
+
+  .sprite {
+    --s: 1;
+    --fw: 68px;
+    --fh: 84px;
+    --frames: 8;
+    --dur: 0.6667s;
+    position: relative;
+    width: calc(var(--fw) * var(--s));
+    height: calc(var(--fh) * var(--s));
+    background-repeat: no-repeat;
+    background-size: calc(var(--fw) * var(--frames) * var(--s)) calc(var(--fh) * var(--s));
+    background-position: 0 0;
+    image-rendering: pixelated;
+    animation: play var(--dur) steps(var(--frames)) infinite;
+    /* The registered frame carries 2 rows below the ground row, so the bigger copy's
+       ground sits 2px higher per extra scale. Pull it back down, or the 1x and 2x
+       copies disagree about where the feet are — which is the one thing this pair is
+       here to show. */
+    margin-bottom: calc(-2px * (var(--s) - 1));
+  }
+
+  /* The row every frame's lowest opaque pixel was registered onto. Drawn only on the
+     enlarged copy, where a one-pixel line is actually a line.
+     Every length here multiplies the scale by a PX unit on purpose: `calc(133 * var(--s))`
+     is a bare number, not a length, so the declaration is dropped and the line silently
+     never appears. That is exactly what the first version did. */
+  .sprite[data-ground]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(81px * var(--s));
+    height: max(2px, calc(var(--s) * 1px));
+    background: var(--accent);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  @keyframes play {
+    from { background-position: 0 0; }
+    to { background-position: calc(var(--fw) * var(--frames) * var(--s) * -1) 0; }
+  }
+
+  .plates.stepped .sprite {
+    animation: none;
+    background-position: calc(var(--fw) * var(--s) * var(--frame, 0) * -1) 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sprite { animation: none; }
+  }
+
+  .plate footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+    background: var(--surface);
+    border-top: 1px solid var(--rule);
+  }
+
+  .plate .name {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .plate .data {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .note {
+    border-left: 2px solid var(--accent);
+    padding: 0.25rem 0 0.25rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 44rem;
+  }
+
+  table {
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    width: 100%;
+    min-width: 26rem;
+  }
+
+  .scroller { overflow-x: auto; }
+
+  th, td {
+    text-align: left;
+    padding: 0.4rem 0.75rem 0.4rem 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  th {
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  tr[data-chosen] td { color: var(--accent); }
+  tr[data-chosen] td:first-child { font-weight: 500; }
+
+  ul.plain {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 44rem;
+  }
+
+  ul.plain li::marker { color: var(--muted); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.85em;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.05em 0.3em;
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Polar Adventures · isometric port</p>
+    <h1>Bear, first look</h1>
+    <p class="lede">
+      The bear rendered in the projection it will actually ship in, with every animation
+      state it needs. Built to answer two questions no sprite sheet can: does the character
+      read standing on a diamond, and does the footage hold together once it is registered.
+    </p>
+    <ul class="status">
+      <li>5 states · 4 facings · 124 frames</li>
+      <li>64 px bear · HERO_H 64</li>
+      <li>1 + 28 generations spent</li>
+    </ul>
+  </header>
+
+  <section id="projection">
+    <h2>In the projection</h2>
+    <p>
+      The real scene, captured headless from Godot at the game's own 960&times;540, one art
+      pixel to one game pixel. The diamond grid is a placeholder drawn from the shipping
+      projection code; there is no tile art yet.
+    </p>
+    <figure>
+      <img src="lab-capture.png" alt="The bear standing on a raised diamond block in the middle of a nine-by-nine isometric grid of dark slate tiles.">
+      <figcaption>bear standing on a raised cell · 64&times;32 diamonds · camera at the bear</figcaption>
+    </figure>
+    <figure>
+      <img src="scale-compare.png" alt="Two captures of the same isometric scene stacked. In the top one the bear towers over the grid at roughly four diamond-heights; in the bottom one it stands at about two.">
+      <figcaption>top: 128 px bear · bottom: 64 px bear · same grid, same camera, same frame</figcaption>
+    </figure>
+    <div class="note">
+      <p>
+        <strong>Framing moved with the character, and that is a second decision.</strong>
+        The viewport is still 960&times;540, so the bear now fills
+        <span class="mono">12.2%</span> of screen height where it filled
+        <span class="mono">23.9%</span>, and the jump covers
+        <span class="mono">41%</span> of it where it covered
+        <span class="mono">83%</span>. Halving the viewport to 480&times;270 would
+        restore the old framing exactly — still an integer 4&times; at 1080p, still one
+        art pixel to one game pixel — and it is a two-setting change.
+      </p>
+    </div>
+    <div class="note">
+      <p>
+        This is what the third bug of the session looked like. At 64&times;32 the bear is
+        <strong>4.03 diamond-heights</strong> tall with a <strong>14-diamond</strong> jump.
+        The Phaser build measured 1.88 and 6.6 and was found good. About twice too large —
+        the diamonds read as small floor tiles under a big bear, and every jump needs
+        fourteen diamond-rows of headroom.
+      </p>
+    </div>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr><th>diamond</th><th>hero heights</th><th>jump</th><th>PixelLab tools lost</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>64&times;32</td><td>4.03</td><td>14.0</td><td>none</td></tr>
+          <tr><td>96&times;48</td><td>2.69</td><td>9.3</td><td>isometric tile</td></tr>
+          <tr><td>128&times;64</td><td>2.02</td><td>7.0</td><td>three of four</td></tr>
+          <tr><td>Phaser build</td><td>1.88</td><td>6.6</td><td>—</td></tr>
+          <tr data-chosen><td>chosen: 64 px bear</td><td>2.02</td><td>7.0</td><td>none</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="mono" style="color: var(--muted)">
+      64 wide is the largest size at which all four PixelLab isometric tools interoperate,
+      so enlarging tiles to fix the ratio costs props, roads and single tiles. Hence a
+      smaller bear.
+    </p>
+  </section>
+
+  <section id="idle">
+    <h2>The run, registered</h2>
+    <p>
+      Each frame is <em>translated</em> so its lowest opaque row lands on a common ground row
+      and its body centres on a common column — the same recipe the Phaser build arrived at
+      for its generated poses. Without it the bear bobs and shuffles: the model places every
+      frame independently, and on the previous bear the feet moved
+      <span class="mono">4 px</span> vertically across a single idle.
+    </p>
+    <p>
+      Eight frames per facing, all landing on row <span class="mono">69</span>. Every
+      consecutive pair differs by <span class="mono">7–15%</span> of the frame, roughly a
+      quarter to a third of the bear's own pixels — so this is a stride rather than a set of
+      near-identical stances, which is the failure an animation strip actually has.
+    </p>
+
+    <div class="controls">
+      <label for="frame-run">frame</label>
+      <input id="frame-run" type="range" min="0" max="7" step="1" value="0">
+      <button id="play-run" type="button">Pause</button>
+      <span class="mono" style="color: var(--muted)">steps all four plates · the blue line is the ground row</span>
+    </div>
+
+    <div class="plates" data-group="run">
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; background-image: url('run-south-east.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; background-image: url('run-south-east.png')"></div>
+        </div>
+        <footer>
+          <span class="name">south-east</span>
+          <span class="data">8 frames @ 12 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; background-image: url('run-south-west.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; background-image: url('run-south-west.png')"></div>
+        </div>
+        <footer>
+          <span class="name">south-west</span>
+          <span class="data">8 frames @ 12 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; background-image: url('run-north-east.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; background-image: url('run-north-east.png')"></div>
+        </div>
+        <footer>
+          <span class="name">north-east</span>
+          <span class="data">8 frames @ 12 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; background-image: url('run-north-west.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; background-image: url('run-north-west.png')"></div>
+        </div>
+        <footer>
+          <span class="name">north-west</span>
+          <span class="data">8 frames @ 12 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+    </div>
+
+    <p>
+      <strong>What to look at.</strong> Whether the four facings are tellable apart at
+      <span class="mono">1&times;</span> — that is the size the game draws them, and the one
+      that matters. Whether the stride reads as a run rather than a wobble. And whether the
+      feet stay put with the blue line.
+    </p>
+  </section>
+
+  <section id="jump">
+    <h2>The jump, registered</h2>
+    <p>
+      An airborne clip is registered with <strong>one</strong> translation for the whole clip,
+      taken from its lowest frame — not one per frame. Planting every frame on the ground row,
+      which is right for a run or a landing, would clamp the bear back onto the floor on
+      exactly the frames where it is highest and delete the leap. This project already paid for
+      that lesson once, on the side-view poses.
+    </p>
+    <p>
+      The frame is also sized around the <em>arc</em> rather than the tallest pose: it grew from
+      72 to 84 pixels the moment the jump was added, because the bear travels up through the
+      canvas and the frame has to hold where its feet reach.
+    </p>
+
+    <div class="controls">
+      <label for="frame-jump">frame</label>
+      <input id="frame-jump" type="range" min="0" max="8" step="1" value="0">
+      <button id="play-jump" type="button">Pause</button>
+      <span class="mono" style="color: var(--muted)">nine frames · the feet leave the blue line and come back to it</span>
+    </div>
+
+    <div class="plates" data-group="jump">
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; --frames: 9; --dur: 1.125s; background-image: url('jump-south-east.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; --frames: 9; --dur: 1.125s; background-image: url('jump-south-east.png')"></div>
+        </div>
+        <footer>
+          <span class="name">south-east</span>
+          <span class="data">9 frames @ 8 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; --frames: 9; --dur: 1.125s; background-image: url('jump-south-west.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; --frames: 9; --dur: 1.125s; background-image: url('jump-south-west.png')"></div>
+        </div>
+        <footer>
+          <span class="name">south-west</span>
+          <span class="data">9 frames @ 8 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; --frames: 9; --dur: 1.125s; background-image: url('jump-north-east.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; --frames: 9; --dur: 1.125s; background-image: url('jump-north-east.png')"></div>
+        </div>
+        <footer>
+          <span class="name">north-east</span>
+          <span class="data">9 frames @ 8 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+
+      <div class="plate">
+        <div class="stage">
+          <div class="sprite" style="--s: 1; --frames: 9; --dur: 1.125s; background-image: url('jump-north-west.png')"></div>
+          <div class="sprite" data-ground style="--s: 2; --frames: 9; --dur: 1.125s; background-image: url('jump-north-west.png')"></div>
+        </div>
+        <footer>
+          <span class="name">north-west</span>
+          <span class="data">9 frames @ 8 fps · 68&times;84 · left 1&times; · right 2&times;</span>
+        </footer>
+      </div>
+    </div>
+  </section>
+
+  <section id="states">
+    <h2>Every state</h2>
+    <p>
+      Five clips, four facings, <span class="mono">124</span> frames. The frame height is fixed
+      for all of them, so the jump's arc and the landing's crouch are measured against the same
+      ground line as a standing pose.
+    </p>
+    <figure>
+      <img src="states-south-east.png" alt="Five horizontal strips stacked, one per state: a four-frame idle, an eight-frame run, a nine-frame jump that rises and returns, a four-frame fall, and a four-frame landing crouch.">
+      <figcaption>every state, one facing · idle · run · jump · fall · land</figcaption>
+    </figure>
+    <figure>
+      <img src="jump-strips.png" alt="Four rows of nine jump frames, one row per facing, each row rising off the ground line and returning to it.">
+      <figcaption>the jump, all four facings · the arc survives because airborne clips get one translation, not one per frame</figcaption>
+    </figure>
+  </section>
+
+  <section id="repair">
+    <h2>The black back leg</h2>
+    <p>
+      South-west came back with its back leg filled with the <em>outline's</em> near-black
+      instead of a fur tone — so limb and outline were one flat colour and it read as a
+      hole punched through the bear. Measured against south-east: <strong>623 more</strong>
+      near-black pixels and <strong>554 fewer</strong> mid-olive ones. Roughly equal and
+      opposite, which is what makes it a fill error rather than extra shading.
+    </p>
+    <figure>
+      <img src="fix-compare.png" alt="Two rows of four south-west idle frames. The top row has a black blob where the back leg should be; the bottom row has a fur-toned leg with a visible outline.">
+      <figcaption>top: as generated · bottom: after the repair · south-west, 4 frames</figcaption>
+    </figure>
+    <p>
+      The fix runs in the build, not on this one image. It recolours the <em>interior</em>
+      of any near-black region thicker than a 5&times;5 block and leaves a one-pixel rim —
+      so the limb comes back as an outlined fur-coloured leg, which is what the other
+      directions already looked like. The guard is thickness, not a list of coordinates: a
+      one-pixel outline cannot survive a 5&times;5 solid test and neither can an eye or a
+      nose, so the outline and the face are untouched by construction.
+    </p>
+    <p class="mono" style="color: var(--muted)">
+      repaired: south-west 827 px &#8594; #98956F · south-east 11 px &#8594; #98956F ·
+      north-west 0 px (its darkest real tone is #AAA98D, so there was nothing to fix)
+    </p>
+  </section>
+
+  <section id="facings">
+    <h2>All eight facings</h2>
+    <p>
+      Direction naming is <em>per character</em> and cannot be inferred: on the previous
+      bear, <span class="mono">east</span> was a rearview. These were read off the images
+      rather than trusted.
+    </p>
+    <figure>
+      <img src="rotations.png" alt="Eight views of the bear in a four-by-two grid: front, front-right three-quarter, right profile, back-right three-quarter, back, back-left three-quarter, left profile, front-left three-quarter.">
+      <figcaption>row 1: south · south-east · east · north-east · row 2: north · north-west · west · south-west</figcaption>
+    </figure>
+    <p>
+      The four diagonals — <span class="mono">south-east</span>,
+      <span class="mono">south-west</span>, <span class="mono">north-east</span>,
+      <span class="mono">north-west</span> — are the isometric set, because a 2:1 diamond
+      puts the lattice directions on the screen diagonals. They are proper 3/4 views, so
+      four facings are needed rather than eight, with no mirroring.
+    </p>
+  </section>
+
+  <section id="arms">
+    <h2>The arms</h2>
+    <p>
+      The arms came out as sticks — thick enough to read as limbs, but nothing like the body
+      they hang from. Measured from the jump frames, where the arms are extended and clear of
+      the torso, so the outer columns cross an arm and nothing else.
+    </p>
+    <p class="mono" style="color: var(--muted)">
+      arm 3.0 px &middot; leg 12.0 px &middot; <strong>arm &divide; leg = 0.25</strong> &middot;
+      and 2.2 px against 12.8 on the idle, also 0.25
+    </p>
+    <p>
+      A quarter. That is the "barrel with twigs bolted on" reading, quantified — and the
+      reason <code>tools/measure_limbs.gd</code> now exists rather than a note in a log. It
+      measures the thinnest vertical run in the outer fifth of the frame (the arm, cut across)
+      and the median horizontal run near the feet (the leg, measured where it is actually
+      separated: mid-leg the two runs merge into one 22px run and the "leg" comes out thicker
+      than the torso, which is the very failure <code>scripts/review-limbs.mjs</code> was
+      built to catch).
+    </p>
+    <figure>
+      <img src="arms-three.png" alt="Three jumps side by side at high magnification. Left has thin arms and five-fingered hands. Middle has thicker arms but blobby hands and a smudged eye. Right has clean thick arms on a different-looking bear.">
+      <figcaption>left: as generated &middot; middle: v1 thickened by algorithm &middot; right: v2 regenerated</figcaption>
+    </figure>
+    <p>
+      All three routes were tried, and each fails differently:
+    </p>
+    <ul class="plain">
+      <li><strong>As generated.</strong> Arms 3.0 px against 12.0 px legs. Clean art, thin arms.</li>
+      <li><strong>Regenerated (right).</strong> Arms genuinely thicker, and clean — but it is a
+        different bear: bigger head, thinner outline, greyer fur. It did not fix the
+        <em>ratio</em> either (0.25 to 0.28), because the legs grew with the arms, so the thing
+        complained about is still there.</li>
+      <li><strong>Thickened by algorithm (middle).</strong> The only route that targets the
+        measurement directly, and deterministic — one transform on all 124 frames. But it eats
+        fine detail: the eye and the nose are thin dark features, so the first version smeared
+        them into a blob; restricting it to light fur fixed the face and then it merged the
+        fingers into the hands. Each exclusion is a patch on a patch, and the outline comes out
+        rougher than it went in.</li>
+    </ul>
+    <p>
+      A pixel artist would redraw the arm, not dilate it. That is the honest summary of why the
+      algorithmic route keeps needing another exception.
+    </p>
+    <div class="note">
+      <p>
+        <strong>Verdict: none of the three shipped.</strong> All of the above was judged at
+        5.5&times;, where a six-pixel hand looks broken. Re-tested at <strong>1&times;</strong> — the
+        size the game draws, in the 960&times;540 viewport — the regenerated bear is clean but is a
+        different animal, and the thickened one puts a <em>black bar across the face</em> where the
+        eye and nose merge. The bear as generated is the one being kept, and the thickener is kept
+        in the tree with its negative result written into its header, because the next person to
+        have this idea should find that out there rather than here.
+      </p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2>Known state</h2>
+    <ul class="plain">
+      <li>This bear replaced a 128&nbsp;px one, and the 8 generations of animation spent on that one are dead art. That is the cost of settling scale <em>after</em> animating: <strong>scale first, then animate.</strong></li>
+      <li>Registration is verified in pixels, not by eye — all 124 frames are asserted by the build tool, not by this page.</li>
+      <li data-flag><strong>Two registration rules, not one.</strong> Grounded clips plant every frame on the ground row (81). Airborne clips — jump and fall — get a single translation for the whole clip, because planting each frame would clamp the leap onto the floor and delete it. A clip must declare which it is.</li>
+      <li data-flag>v3 clips store the prompt's reference frame as frame 0 — the standing pose the model was <em>given</em>. It is dropped, or a standing frame plays mid-fall.</li>
+      <li>Slide was dropped with the ice mechanic, so it was never generated.</li>
+      <li>The palette repair that fixed the black back leg <strong>did not have to act on this bear</strong>: 0&nbsp;px repaired across all eight strips.</li>
+      <li data-flag>But its threshold is <em>calibrated</em>, and on this smaller bear it picked a different target colour for each facing (<span class="mono">#645850 #5E5347 #6B6055 #523D30 #302822</span>) — evidence that the rule is fragile even when it happens not to be needed. The self-calibrating version is described in the tool.</li>
+      <li data-flag>Framing moved with the scale and is not yet decided: the bear fills <span class="mono">12.2%</span> of the 960&times;540 viewport where it filled <span class="mono">23.9%</span>, and the jump <span class="mono">41%</span> where it was <span class="mono">83%</span>. Halving the viewport to 480&times;270 would restore it exactly.</li>
+    </ul>
+  </section>
+
+</div>
+
+<script>
+  (function () {
+    // One independent control per plate group: they have different frame counts —
+    // the run is 8, the jump is 9 — so a single shared slider would have to be wrong
+    // for one of them.
+    document.querySelectorAll('.plates[data-group]').forEach(function (plates) {
+      var group = plates.dataset.group;
+      var slider = document.getElementById('frame-' + group);
+      var button = document.getElementById('play-' + group);
+      if (!slider || !button) return;
+
+      function pause() {
+        plates.classList.add('stepped');
+        plates.style.setProperty('--frame', slider.value);
+        button.textContent = 'Play';
+      }
+
+      function play() {
+        plates.classList.remove('stepped');
+        button.textContent = 'Pause';
+      }
+
+      slider.addEventListener('input', pause);
+      button.addEventListener('click', function () {
+        if (plates.classList.contains('stepped')) { play(); } else { pause(); }
+      });
+
+      play();
+    });
+  })();
+</script>

@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+; The game. `y_sort_enabled` is the whole depth story: the terrain draws itself as one
+; node per diagonal, the hero's node sits at its feet, and Godot sorts siblings by their
+; origin's Y. Nothing anywhere computes a depth value, which is what makes the feet-origin
+; convention worth keeping rather than a detail.
+
+[ext_resource type="Script" path="res://scripts/scenes/level_scene.gd" id="1_level"]
+
+[node name="Level" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_level")
