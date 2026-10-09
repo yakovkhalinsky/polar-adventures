@@ -15,7 +15,9 @@
 ##   * a character not in the legend — silently empty ground
 ##   * no spawn — the character has nowhere to start
 ##   * two spawns — whichever one the parser found first wins, silently
-##   * a cell whose ground has nothing beneath it, unless the level says it is a bridge
+##
+## Every one of those is asserted by tests/unit/test_level_format.gd. A check that
+## no test exercises is a claim, not a guarantee — see the note in `_build`.
 
 class_name LevelSource
 extends RefCounted
@@ -95,7 +97,7 @@ static func from_text(text: String, origin: String = "<text>") -> LevelSource:
 		return null
 	if not src._validate(legend, origin):
 		return null
-	src._build(legend, origin)
+	src._build(legend)
 	return src
 
 
@@ -155,7 +157,7 @@ func _validate(legend: Dictionary, origin: String) -> bool:
 	return true
 
 
-func _build(legend: Dictionary, origin: String) -> void:
+func _build(legend: Dictionary) -> void:
 	for v in rows.size():
 		for u in width:
 			var entry: Dictionary = legend[rows[v][u]]
@@ -167,17 +169,24 @@ func _build(legend: Dictionary, origin: String) -> void:
 			cell.height = entry["height"]
 			cells[Vector2i(u, v)] = cell
 
-	# A solid cell with nothing at the level below it is a floating island. That is legal
-	# — this is a height field, not a stack — but it is almost always a typo, so it is
-	# reported rather than silently rendered as a block hanging in the air.
-	for key in cells:
-		var cell: Cell = cells[key]
-		var below := Vector2i(key.x, key.y)
-		if cell.height > 0.0 and not cells.has(below):
-			printerr("level %s: cell (%d, %d) floats at height %.0f with no ground beneath" % [
-				origin, key.x, key.y, cell.height
-			])
-			return
+	# A "floating island" check lived here: a solid cell at height > 0 with nothing
+	# beneath it. It is gone, and it should not be re-added in that form — for two
+	# reasons, either of which is fatal on its own.
+	#
+	# It could never fire. It built `below := Vector2i(key.x, key.y)` — the cell's own
+	# key — then asked `cells.has(below)`, which is trivially true for every cell in
+	# the very loop it was iterating. A check that cannot fail is not a check; it is a
+	# claim in the header (and it was, until this was removed).
+	#
+	# And the condition it described does not exist in this model. A height here is a
+	# property OF a cell, not a cell's position in a stack, so no cell is ever
+	# unsupported: every raised cell in the shipped level — the whole 4x4 plateau —
+	# would have tripped it. The old side-view build had columns and could express
+	# "nothing beneath"; this format cannot, which is why it has no `bridge` kind for
+	# the header to make an exception of.
+	#
+	# If it is wanted back, it needs a definition of "beneath" this format can state,
+	# and a test that watches it reject something.
 
 
 func spawn_cell() -> Vector2i:

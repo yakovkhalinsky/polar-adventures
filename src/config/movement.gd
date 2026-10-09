@@ -13,6 +13,14 @@
 ## Units are PIXELS PER SECOND and PIXELS PER SECOND SQUARED. Do not introduce a
 ## "pixels per frame" number anywhere — it will silently be 60x wrong.
 ##
+## NO DERIVED VALUE IS WRITTEN DOWN IN A COMMENT HERE. These constants were
+## annotated with their evaluated results for a while, and when HERO_H halved from
+## 128 to 64 every one of those annotations became wrong by a factor of two while
+## the constants themselves stayed right — a reader would have trusted the comment
+## over the code. The evaluated values have a single home instead: the tuning
+## readout below, which boots print and the test suite asserts. If you want a
+## number, run the game or the suite; do not add a second copy here.
+##
 ## Tuning order if the feel is off:
 ##   1. APEX_TIME_S         - snappy vs floaty      (try 0.34 .. 0.46)
 ##   2. JUMP_HEIGHT_HEROES  - how much level you can climb (try 3 .. 4)
@@ -45,23 +53,23 @@ const HERO_H := 64.0
 const JUMP_HEIGHT_HEROES := 3.5
 const APEX_TIME_S := 0.40
 
-const JUMP_HEIGHT_PX := JUMP_HEIGHT_HEROES * HERO_H  # 448
+const JUMP_HEIGHT_PX := JUMP_HEIGHT_HEROES * HERO_H
 
 # --- horizontal -------------------------------------------------------------
 # Restated in hero-relative terms rather than carried as px/s literals, so that
 # each constant's MEANING survives a change to HERO_H. The values are the same
 # feel as the Phaser build's; the numbers are not the same numbers.
 const RUN_HEROES_PER_S := 5.0
-const MAX_RUN_SPEED := RUN_HEROES_PER_S * HERO_H  # 640 px/s
+const MAX_RUN_SPEED := RUN_HEROES_PER_S * HERO_H
 const RUN_UP_SECONDS := 0.12  # top speed in 0.12s — a TIME, so it does not scale
-const GROUND_ACCEL := MAX_RUN_SPEED / RUN_UP_SECONDS  # 5333.33 px/s^2
-const TURN_ACCEL := 2.0 * GROUND_ACCEL  # 10666.67
+const GROUND_ACCEL := MAX_RUN_SPEED / RUN_UP_SECONDS
+const TURN_ACCEL := 2.0 * GROUND_ACCEL
 # Exactly 2x, where the Phaser value was one unit under (10075 against a doubling
 # of 10076). The documented intent was "2.0x GROUND_ACCEL", so honouring the
 # intent is the right call on a rebuild — but the change is deliberate and worth
 # seeing rather than a silent drift.
 const AIR_ACCEL_RATIO := 0.58
-const AIR_ACCEL := AIR_ACCEL_RATIO * GROUND_ACCEL  # 3093.33 — a jump commits you
+const AIR_ACCEL := AIR_ACCEL_RATIO * GROUND_ACCEL  # a jump commits you
 const AIR_DRAG := 0.0  # ZERO, deliberately. Non-zero air drag eats horizontal
 #                        speed at the apex and makes jumps fall short. The most
 #                        common arcade-platformer mistake.
@@ -72,18 +80,18 @@ const GROUND_DRAG := (MAX_RUN_SPEED * MAX_RUN_SPEED) / (2.0 * SLIDE_HEROES * HER
 
 # --- vertical, DERIVED ------------------------------------------------------
 # GRAVITY_RISE = 2h/t^2  and  JUMP_VELOCITY = 2h/t.
-const GRAVITY_RISE := (2.0 * JUMP_HEIGHT_PX) / (APEX_TIME_S * APEX_TIME_S)  # 5600
-const JUMP_VELOCITY := (2.0 * JUMP_HEIGHT_PX) / APEX_TIME_S  # 2240
+const GRAVITY_RISE := (2.0 * JUMP_HEIGHT_PX) / (APEX_TIME_S * APEX_TIME_S)
+const JUMP_VELOCITY := (2.0 * JUMP_HEIGHT_PX) / APEX_TIME_S
 
 # --- vertical, hand-set -----------------------------------------------------
 # These are NOT derived. They are the taste layer on top of the derived arc.
 const GRAVITY_FALL_RATIO := 1.64  # asymmetric gravity IS the sense of weight;
 #                                     1.6-2.0 is the sweet spot
-const GRAVITY_FALL := GRAVITY_RISE * GRAVITY_FALL_RATIO  # 9184
+const GRAVITY_FALL := GRAVITY_RISE * GRAVITY_FALL_RATIO
 ## Terminal fall speed in hero-heights/s. Restated from the Phaser build's 2015px
 ## at HERO_H 124 — carried across, not derived.
 const FALL_HEROES_PER_S := 16.25
-const MAX_FALL_SPEED := FALL_HEROES_PER_S * HERO_H  # 2080 px/s
+const MAX_FALL_SPEED := FALL_HEROES_PER_S * HERO_H
 
 ## The minimum hop as a fraction of full jump velocity.
 ##
@@ -93,7 +101,7 @@ const MAX_FALL_SPEED := FALL_HEROES_PER_S * HERO_H  # 2080 px/s
 ##
 ## Restated from the Phaser build's 1279/2170 — carried across, not derived.
 const MIN_HOP_RATIO := 0.5894
-const JUMP_CUT_VELOCITY := JUMP_VELOCITY * MIN_HOP_RATIO  # 1320.26 -> min hop 1.22 hero-heights
+const JUMP_CUT_VELOCITY := JUMP_VELOCITY * MIN_HOP_RATIO
 
 # --- forgiveness windows ----------------------------------------------------
 const COYOTE_MS := 100.0  # ~6 frames of grace after walking off a ledge. The
