@@ -70,12 +70,14 @@ jobs:
       # cache and the imported art are both regenerated here. Without this the
       # export fails on a clean checkout even though it works locally.
       - name: Import project
-        run: "$HOME/godot/godot" --headless --path . --import
+        run: |
+          "$HOME/godot/godot" --headless --path . --import
 
       # The suite is the build gate, not a formality. It is 108 checks and exits
       # non-zero on any failure, so a red suite stops the deploy here.
       - name: Run tests
-        run: "$HOME/godot/godot" --headless --path . --script res://tests/run_tests.gd
+        run: |
+          "$HOME/godot/godot" --headless --path . --script res://tests/run_tests.gd
 
       - name: Export web build
         run: |
