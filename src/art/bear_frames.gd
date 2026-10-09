@@ -7,9 +7,13 @@
 ## Built at RUNTIME rather than saved as a `.tres`, deliberately. A SpriteFrames built by
 ## a tool script would reference textures the tool had only just written, and without an
 ## `--import` pass in between Godot embeds them inline — measured elsewhere in this
-## project at 351KB against 566 bytes for the same asset. Reading bytes sidesteps the
-## ordering entirely, and it means re-running the art build and the game back to back
-## just works.
+## project at 351KB against 566 bytes for the same asset.
+##
+## Strips are loaded through the IMPORT SYSTEM, not read as raw bytes. Reading bytes
+## worked in the editor and broke in every export: a packed build ships the imported
+## texture, and a `FileAccess` read of `<name>.png` finds nothing in the pck, so every
+## animation vanished with only a console warning. Loading the texture gets the same
+## Image via `get_image()`, and the `AtlasTexture` slicing below is unchanged.
 
 class_name BearFrames
 extends RefCounted
@@ -35,15 +39,14 @@ static func build(dir: String, warn: Variant = null) -> SpriteFrames:
 	for entry in layout.get("strips", []):
 		var anim: String = entry["name"]
 		var path := "%s/%s.png" % [dir, anim]
-		var bytes := FileAccess.get_file_as_bytes(path)
-		if bytes.is_empty():
-			_report(warn, "missing or unreadable strip %s" % path)
+		if not ResourceLoader.exists(path):
+			_report(warn, "missing strip %s" % path)
 			continue
-		var img := Image.new()
-		if img.load_png_from_buffer(bytes) != OK:
-			_report(warn, "%s is not a readable PNG" % path)
+		var tex: Texture2D = load(path)
+		if tex == null:
+			_report(warn, "unreadable strip %s" % path)
 			continue
-		var tex := ImageTexture.create_from_image(img)
+		var img := tex.get_image()
 
 		# The strip must be a whole number of frames wide, or the last frame is cut and
 		# the animation silently loses its tail.

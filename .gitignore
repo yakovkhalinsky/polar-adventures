@@ -21,3 +21,7 @@ export/
 production/session-logs/
 production/session-state/active.md
 project.local.yaml
+
+# Godot must not scan the export output — it would import the built files and write
+# .import sidecars into the published directory.
+!export/.gdignore
